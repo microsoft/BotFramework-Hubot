@@ -46,7 +46,7 @@ class BotFrameworkAdapter extends Adapter
         @appId = process.env.BOTBUILDER_APP_ID
         @appPassword = process.env.BOTBUILDER_APP_PASSWORD
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
-        @robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId} #{@appPassword}"
+        @robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
         @connector  = new BotBuilder.ChatConnector
             appId: @appId
