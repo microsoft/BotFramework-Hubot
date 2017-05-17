@@ -40,14 +40,14 @@ BotBuilder = require 'botbuilder'
 LogPrefix = "hubot-botframework:"
 
 class BotFrameworkAdapter extends Adapter
-    constructor: (@robot) ->
-        super @robot
+    constructor: (robot) ->
+        super robot
         @appId = process.env.BOTBUILDER_APP_ID
         @appPassword = process.env.BOTBUILDER_APP_PASSWORD
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
-        @robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
+        robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
-        @connector  = new BotBuilder.ChatConnector
+        @connector = new BotBuilder.ChatConnector
             appId: @appId
             appPassword: @appPassword
 
@@ -59,65 +59,42 @@ class BotFrameworkAdapter extends Adapter
 
         for activity in activities
             @robot.logger.info "BF Channel: #{activity.source}; activity type: #{activity.type}"
-            # Differentiate between 1:1 and MS Team channel events
-            if activity.sourceEvent?
-                eventType = if activity.sourceEvent.eventType? then activity.sourceEvent.eventType else "(none)"
-                convType = if activity.sourceEvent.team? 
-                  activity.text = hubotifyBotMentions(activity.text, getMentions(activity), activity.address.bot.id, @robot.name)
-                  "team (#{activity.sourceEvent.team.id})" 
-                else 
-                  "personal"
-                tenant = if activity.sourceEvent.tenant? then activity.sourceEvent.tenant.id else null
-                @robot.logger.info "Event type: #{eventType}; Team: #{convType}; Tenant: #{tenant}"
             address = activity.address
-
-            # Microsoft Teams specific feature:
-            # If HUBOT_OFFICE365_TENANT_FILTER is set and current tenant isn't that, exit immediately (no response)
-            if process.env.HUBOT_OFFICE365_TENANT_FILTER? 
-                if process.env.HUBOT_OFFICE365_TENANT_FILTER isnt tenant
-                    @robot.logger.info "Attempted access from a different Office 365 tenant (#{tenant}): message rejected"
-                    return
-
+            # Retrieve Microsoft Teams tenant information if present to persist in the brain
+            # If not running inside Teams, tenant will be null
+            if activity.sourceEvent?
+                tenant = if activity.sourceEvent.tenant? then activity.sourceEvent.tenant.id else null
             user = @robot.brain.userForId address.user.id, name: address.user.name, room: address.conversation.id, tenant: tenant
             user.activity = activity
             if activity.type is 'message'
-                @sendTyping activity.address
-                @robot.receive new TextMessage(user, activity.text, activity.address.id)
+                message = new TextMessage user, activity.text, activity.address.id
+                # Adjust raw message text so that Microsoft Teams @ mentions are what Hubot expects
+                # Adjustment logic is not Microsoft Teams specific
+                message.text = hubotifyBotMentions(activity.text, getMentions(activity), activity.address.bot.id, @robot.name)
+                @robot.receive message
  
-    send: (context, strings...) ->
+    # Hubot is sending a message to Bot Framework
+    send: (envelope, strings...) ->
         @robot.logger.info "#{LogPrefix} Message"
-        @reply context, strings...
+        @reply envelope, strings...
  
-    # Send a "typing" message
-    sendTyping: (address) ->
-        msg =
-            type: "typing"
-            address: address
-            conversation: address.conversation
-            serviceUrl: address.serviceUrl
-        @connector.send [msg]
-
-    reply: (context, strings...) ->
+    # Hubot is replying to a Bot Framework message
+    reply: (envelope, strings...) ->
         @robot.logger.info "#{LogPrefix} Sending reply"
         for str in strings
-            # Add proper line breaks
-            msgText = str.replace /\n/g, "\n\n"
-            # Escape < and >
-            msgText = msgText.replace /</g, "["
-            msgText = msgText.replace />/g, "]"
-
-            imageAttachment = generateImageAttachment str
-            # If the entire message is an image URL, set msgText to null
-            if imageAttachment isnt null and str == imageAttachment.contentUrl
-              msgText = null
-
             # Generate message
             msg = 
                 type: 'message'
-                text: msgText
+                text: str
                 attachments: [
                 ]
-                address: context.user.activity.address
+                address: envelope.user.activity.address
+
+            # If there's at least one image URL in the message text, make an attachment out of it
+            imageAttachment = generateImageAttachment str
+            # If the entire message is an image URL, set msg.text to null
+            if imageAttachment isnt null and str is imageAttachment.contentUrl
+              msg.text = null
             if imageAttachment isnt null 
               msg.attachments.push(imageAttachment)
             @connector.send [msg]
@@ -130,7 +107,7 @@ class BotFrameworkAdapter extends Adapter
 exports.use = (robot) ->
   new BotFrameworkAdapter robot
 
-# Helper functions for generating richer messages and for working in the Microsoft Teams channel
+# Helper functions for generating richer messages
 
 # If the message text contains an image URL, extract it and generate the data Bot Framework needs
 getImageRef = (text) ->
@@ -154,6 +131,8 @@ generateImageAttachment = (msgText) ->
             contentType: "image/" + imgRef.type
             contentUrl: imgRef.url
             name: imgRef.filename + "." + imgRef.type
+
+# Helper functions for Bot Framework / Microsoft Teams
 
 # Transform Bot Framework/Microsoft Teams @mentions into Hubot's name as configured
 hubotifyBotMentions = (msgText, mentions, bfBotId, hubotBotName) ->
