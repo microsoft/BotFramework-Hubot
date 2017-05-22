@@ -1,15 +1,15 @@
 #
 # Copyright (c) Microsoft. All rights reserved.
 # Licensed under the MIT license.
-# 
+#
 # Microsoft Bot Framework: http://botframework.com
-# 
+#
 # Bot Builder SDK Github:
 # https://github.com/Microsoft/BotBuilder
-# 
+#
 # Copyright (c) Microsoft Corporation
 # All rights reserved.
-# 
+#
 # MIT License:
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -18,10 +18,10 @@
 # distribute, sublicense, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be
 # included in all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED ""AS IS"", WITHOUT WARRANTY OF ANY KIND,
 # EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -31,58 +31,62 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-
 Util = require 'util'
 Timers = require 'timers'
 
 BotBuilder = require 'botbuilder'
-{Robot, Adapter, TextMessage, User} = require 'hubot'
+{ Robot, Adapter, TextMessage, User } = require 'hubot'
+{ registerMiddleware, middlewareFor } = require './middlewares'
 
-LogPrefix = "hubot-botframework:"
+LogPrefix = "hubot-botframework-adapter:"
 
 class BotFrameworkAdapter extends Adapter
-    constructor: (@robot) ->
-        super @robot
+    
+    constructor: (robot) ->
+        super robot
         @appId = process.env.BOTBUILDER_APP_ID
         @appPassword = process.env.BOTBUILDER_APP_PASSWORD
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
         @robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
-        @connector  = new BotBuilder.ChatConnector
+        @connector  = new BotBuilder.ChatConnector {
             appId: @appId
             appPassword: @appPassword
+        }
 
         @connector.onEvent (events, cb) => @onBotEvents events, cb
+
+    using: (name) ->
+        MiddlewareClass = middlewareFor(name)
+        new MiddlewareClass(@robot)
 
     onBotEvents: (activities, cb) ->
         @robot.logger.info "#{LogPrefix} onBotEvents"
         activities = [activities] unless Array.isArray activities
+        @handleActivty activity for activity in activities
+            
+    handleActivty: (activity) ->
+        @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
+        @robot.receive @using(activity.source).toReceivable(activity)
 
-        for activity in activities
-            address = activity.address
-            user = @robot.brain.userForId address.user.id, name: address.user.name, room: address.conversation.id
-            user.activity = activity
-            if activity.type == 'message'
-                @robot.receive new TextMessage(user, activity.text, activity.sourceEvent.clientActivityId)
+    send: (context, messages...) ->
+        @robot.logger.info "#{LogPrefix} send"
+        console.log(messages)
+        @reply context, messages...
  
-    send: (context, strings...) ->
-        @robot.logger.info "#{LogPrefix} Message"
-        @reply context, strings...
- 
-    reply: (context, strings...) ->
-        @robot.logger.info "#{LogPrefix} Sending reply"
-        for str in strings
-            msg = 
-                type: 'message'
-                text: str
-                address: context.user.activity.address
-            @connector.send [msg]
-                
+    reply: (context, messages...) ->
+        @robot.logger.info "#{LogPrefix} reply"
+        for msg in messages
+            channelId = msg.channelId || '*'
+            payload = [@using(channelId).toSendable(context, msg)]
+            @connector.send payload, (err, _) -> throw err if err
  
     run: ->
         @robot.router.post @endpoint, @connector.listen()
         @robot.logger.info "#{LogPrefix} Adapter running."
-        Timers.setTimeout(=> @emit "connected", 1000)
+        Timers.setTimeout (=> @emit "connected"), 1000
 
 exports.use = (robot) ->
-  new BotFrameworkAdapter robot
+    new BotFrameworkAdapter robot
+
+exports.middlewares = require './middlewares'
