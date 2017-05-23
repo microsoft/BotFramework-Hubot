@@ -63,15 +63,14 @@ class BotFrameworkAdapter extends Adapter
     onBotEvents: (activities, cb) ->
         @robot.logger.info "#{LogPrefix} onBotEvents"
         activities = [activities] unless Array.isArray activities
-        @handleActivty activity for activity in activities
+        @handleActivity activity for activity in activities
             
-    handleActivty: (activity) ->
+    handleActivity: (activity) ->
         @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
         @robot.receive @using(activity.source).toReceivable(activity)
 
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"
-        console.log(messages)
         @reply context, messages...
  
     reply: (context, messages...) ->
