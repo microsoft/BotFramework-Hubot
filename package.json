@@ -5,11 +5,18 @@
   "main": "./src/adapter.coffee",
   "author": "Microsoft Corp.",
   "license": "MIT",
+  "scripts": {
+    "build": "node_modules/.bin/coffee --output lib --compile src"
+  },
   "dependencies": {
     "botbuilder": ">=3.5.0",
     "parent-require": "^1.0.0"
   },
+  "peerDependencies": {
+    "hubot": "^2.19.0"
+  },
   "devDependencies": {
-    "coffee-script": ">=1.2.0"
+    "coffee-script": ">=1.2.0",
+    "hubot": "^2.19.0"
   }
 }
