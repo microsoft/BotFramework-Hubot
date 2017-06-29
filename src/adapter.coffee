@@ -78,7 +78,7 @@ class BotFrameworkAdapter extends Adapter
         for msg in messages
             channelId = msg.channelId || '*'
             payload = @using(channelId).toSendable(context, msg)
-            if !Array.isArray(messages)
+            if !Array.isArray(payload)
               payload = [payload]
             @connector.send payload, (err, _) -> throw err if err
 
