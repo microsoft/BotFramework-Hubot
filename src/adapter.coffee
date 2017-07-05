@@ -60,7 +60,7 @@ class BotFrameworkAdapter extends Adapter
                payload = [payload]
             @connector.send payload, (err, _) -> 
                 if err
-                    throw err if err
+                    throw err
  
     run: ->
         @robot.router.post @endpoint, @connector.listen()
