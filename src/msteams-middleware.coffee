@@ -29,19 +29,24 @@
 LogPrefix = "hubot-msteams:"
 
 class MicrosoftTeamsMiddleware extends BaseMiddleware
+  # Flag to ensure SendTyping is only sent once per batch of messages (once per invocation/creation of the class)
+  _sendTypingSent = false
+
   constructor: (@robot) ->
     @robot.logger.info "#{LogPrefix} creating middleware..."
     # Initialize Hubot Middleware
 
     # Sends a typing indicator before sending a message
     @robot.responseMiddleware (context, next, done) ->
-      conversationAddress = context.response.message.user.activity.address
-      msg =
-        type: "typing"
-        address: conversationAddress
-        conversation: conversationAddress.conversation
-        serviceUrl: conversationAddress.serviceUrl
-      robot.adapter.connector.send [msg]
+      if not @_sendTypingSent
+        @_sendTypingSent = true
+        conversationAddress = context.response.message.user.activity.address
+        msg =
+          type: "typing"
+          address: conversationAddress
+          conversation: conversationAddress.conversation
+          serviceUrl: conversationAddress.serviceUrl
+        robot.adapter.connector.send [msg]
       next()
 
     # Properly handle chat vs. channel messages
