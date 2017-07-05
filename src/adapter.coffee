@@ -13,7 +13,9 @@ Timers = require 'timers'
 
 BotBuilder = require 'botbuilder'
 { Robot, Adapter, TextMessage, User } = require 'hubot'
-{ registerMiddleware, middlewareFor } = require './adapter-middleware'
+{ middlewareFor } = require './adapter-middleware'
+# Uncomment the following line to enable MS Teams Middleware
+# { MicrosoftTeamsMiddleware } = require './msteams-middleware'
 
 LogPrefix = "hubot-botframework-adapter:"
 
@@ -52,9 +54,13 @@ class BotFrameworkAdapter extends Adapter
     reply: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} reply"
         for msg in messages
-            channelId = msg.channelId || '*'
-            payload = [@using(channelId).toSendable(context, msg)]
-            @connector.send payload, (err, _) -> throw err if err
+            activity = context.user.activity
+            payload = @using(activity.source).toSendable(context, msg)
+            if !Array.isArray(payload)
+               payload = [payload]
+            @connector.send payload, (err, _) -> 
+                if err
+                    throw err if err
  
     run: ->
         @robot.router.post @endpoint, @connector.listen()
@@ -64,4 +70,4 @@ class BotFrameworkAdapter extends Adapter
 exports.use = (robot) ->
     new BotFrameworkAdapter robot
 
-exports.middlewares = require './adapter-middleware'
+exports.middleware = require './adapter-middleware'
