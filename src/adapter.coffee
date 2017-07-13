@@ -13,9 +13,8 @@ Timers = require 'timers'
 
 BotBuilder = require 'botbuilder'
 { Robot, Adapter, TextMessage, User } = require 'hubot'
-{ middlewareFor } = require './adapter-middleware'
-# Uncomment the following line to enable MS Teams Middleware
-# { MicrosoftTeamsMiddleware } = require './msteams-middleware'
+Middleware = require './adapter-middleware'
+MicrosoftTeamsMiddleware = require './msteams-middleware'
 
 LogPrefix = "hubot-botframework-adapter:"
 
@@ -35,7 +34,7 @@ class BotFrameworkAdapter extends Adapter
         @connector.onEvent (events, cb) => @onBotEvents events, cb
 
     using: (name) ->
-        MiddlewareClass = middlewareFor(name)
+        MiddlewareClass = Middleware.middlewareFor(name)
         new MiddlewareClass(@robot)
 
     onBotEvents: (activities, cb) ->
@@ -45,7 +44,9 @@ class BotFrameworkAdapter extends Adapter
 
     handleActivity: (activity) ->
         @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
-        @robot.receive @using(activity.source).toReceivable(activity)
+        event = @using(activity.source).toReceivable(activity)
+        if event?
+            @robot.receive event
 
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"
@@ -68,7 +69,10 @@ class BotFrameworkAdapter extends Adapter
         @robot.logger.info "#{LogPrefix} Adapter running."
         Timers.setTimeout (=> @emit "connected"), 1000
 
-exports.use = (robot) ->
-    new BotFrameworkAdapter robot
+module.exports = {
+    Middleware,
+    MicrosoftTeamsMiddleware
+}
 
-exports.middleware = require './adapter-middleware'
+module.exports.use = (robot) ->
+    new BotFrameworkAdapter robot
