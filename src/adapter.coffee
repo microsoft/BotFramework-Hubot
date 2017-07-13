@@ -42,7 +42,7 @@ class BotFrameworkAdapter extends Adapter
         @robot.logger.info "#{LogPrefix} onBotEvents"
         activities = [activities] unless Array.isArray activities
         @handleActivity activity for activity in activities
-            
+
     handleActivity: (activity) ->
         @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
         @robot.receive @using(activity.source).toReceivable(activity)
@@ -50,7 +50,7 @@ class BotFrameworkAdapter extends Adapter
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"
         @reply context, messages...
- 
+
     reply: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} reply"
         for msg in messages
@@ -62,6 +62,7 @@ class BotFrameworkAdapter extends Adapter
                 if err
                     throw err
  
+
     run: ->
         @robot.router.post @endpoint, @connector.listen()
         @robot.logger.info "#{LogPrefix} Adapter running."

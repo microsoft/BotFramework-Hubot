@@ -38,3 +38,4 @@ jspm_packages
 
 node_modules/
 .vscode/
+lib/
