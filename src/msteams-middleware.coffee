@@ -46,7 +46,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
           address: conversationAddress
           conversation: conversationAddress.conversation
           serviceUrl: conversationAddress.serviceUrl
-        robot.adapter.connector.send [msg]
+
+        robot.adapter.send [msg]
       next()
 
     # Properly handle chat vs. channel messages
@@ -65,14 +66,15 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # Adds proper line breaks, escape < and > characters, and fix up @mentions which look ugly in plaintext
     @robot.responseMiddleware (context, next, done) ->
       for str,i in context.strings
-        # Fix up @mentions
-        msgText = _hubotifyAtMentions str, _getMentions(context.response.message.user.activity)
-        # Escape < and >
-        msgText = msgText.replace /</g, "["
-        msgText = msgText.replace />/g, "]"
-        # Add proper line breaks
-        msgText = str.replace /\n/g, "<br/>" # or "\n\n but that leaves blank lines between every content line"
-        context.strings[i] = msgText
+        if typeof str is 'string'
+          # Fix up @mentions
+          msgText = _hubotifyAtMentions str, _getMentions(context.response.message.user.activity)
+          # Escape < and >
+          msgText = msgText.replace /</g, "["
+          msgText = msgText.replace />/g, "]"
+          # Add proper line breaks
+          msgText = str.replace /\n/g, "<br/>" # or "\n\n but that leaves blank lines between every content line"
+          context.strings[i] = msgText
       next()
 
     # Ignores messages from outside the tenant using receiveMiddleware

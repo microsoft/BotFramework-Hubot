@@ -57,8 +57,8 @@ class BotFrameworkAdapter extends Adapter
             activity = context.user.activity
             payload = @using(activity.source).toSendable(context, msg)
             if !Array.isArray(payload)
-               payload = [payload]
-            @connector.send payload, (err, _) -> 
+                payload = [payload]
+            @connector.send payload, (err, _) ->
                 if err
                     throw err
  
