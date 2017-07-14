@@ -1,6 +1,6 @@
 {
   "name": "hubot-botframework",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Bot Framework adapter for Hubot",
   "main": "./src/adapter.coffee",
   "author": "Microsoft Corp.",
