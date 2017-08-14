@@ -12,6 +12,7 @@ Required (obtained from the BotFramework portal):
 
 Optional:
 1. `BOTBUILDER_ENDPOINT` - Sets a custom HTTP endpoint for your bot to receive messages on (defualt is `/api/messages`).
+2. `BOTBUILDER_ROOM_WEBHOOK` - Sets a custom WEBHOOK to send messages to a room (channel).
 
 # Channel Specific Variables
 ## [Microsoft Teams](https://products.office.com/en-US/microsoft-teams/)
