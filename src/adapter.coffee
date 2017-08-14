@@ -24,6 +24,7 @@ class BotFrameworkAdapter extends Adapter
         @appId = process.env.BOTBUILDER_APP_ID
         @appPassword = process.env.BOTBUILDER_APP_PASSWORD
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
+        @defaultRoom = process.env.BOTBUILDER_ROOM_WEBHOOK || ""
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
         @connector  = new BotBuilder.ChatConnector {
@@ -63,7 +64,19 @@ class BotFrameworkAdapter extends Adapter
                 if err
                     throw err
  
-
+    messageRoom: (context, messages...) ->
+        @robot.logger.info "#{LogPrefix} messageRoom"
+        for msg in messages
+            data = JSON.stringify({
+                text: msg
+            })
+            if context or defaultRoom
+                @robot.http(context ||= defaultRoom)
+                    .header('Content-Type', 'application/json')
+                    .post(data) (err, res, body) =>
+                        if err
+                            @robot.logger.error err
+                            @robot.logger.info body                    
     run: ->
         @robot.router.post @endpoint, @connector.listen()
         @robot.logger.info "#{LogPrefix} Adapter running."
