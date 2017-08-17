@@ -51,10 +51,22 @@ class BotFrameworkAdapter extends Adapter
 
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"
+        if context.room? and -1 isnt context.room.indexOf "http"
+            @messageRoom context, messages...
+            return
         @reply context, messages...
+
+        #for msg in messages
+        #    payload = @using(context).toSendable(context, msg)
+        #    if !Array.isArray(payload)
+        #        payload = [payload]
+        #    @connector.send payload, (err, _) ->
+        #        if err
+        #            throw err
 
     reply: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} reply"
+        console.log context
         for msg in messages
             activity = context.user.activity
             payload = @using(activity.source).toSendable(context, msg)
@@ -63,20 +75,22 @@ class BotFrameworkAdapter extends Adapter
             @connector.send payload, (err, _) ->
                 if err
                     throw err
- 
+
     messageRoom: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} messageRoom"
         for msg in messages
             data = JSON.stringify({
                 text: msg
             })
-            if context or defaultRoom
-                @robot.http(context ||= defaultRoom)
+            console.log context
+            if context.room? or @defaultRoom
+                @robot.http(context.room ||= @defaultRoom)
                     .header('Content-Type', 'application/json')
                     .post(data) (err, res, body) =>
                         if err
                             @robot.logger.error err
-                            @robot.logger.info body                    
+                            @robot.logger.info body
+
     run: ->
         @robot.router.post @endpoint, @connector.listen()
         @robot.logger.info "#{LogPrefix} Adapter running."
