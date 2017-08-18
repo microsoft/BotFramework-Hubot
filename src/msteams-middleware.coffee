@@ -47,6 +47,15 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             return null
 
         address = activity.address
+        #for v,k of activity
+        #    @robot.logger.info "#{LogPrefix} activity #{v} for #{k}"
+        #    if typeof k isnt 'string'
+        #        for l,m of k
+        #            @robot.logger.info "#{LogPrefix} activity #{v} for #{l} of #{m}"
+        #            if typeof m isnt 'string'
+        #                for n,o of m
+        #                    @robot.logger.info "#{LogPrefix} activity #{v} for #{l} of #{n} of #{o}"
+        #@robot.logger.info "#{LogPrefix} info for #{address.user.name}"
         user = @robot.brain.userForId(
             address.user.id,
             name: address.user.name,
@@ -63,6 +72,9 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 getMentions(activity),
                 activity.address.bot.id,
                 @robot.name)
+            if -1 is message.text.indexOf @robot.name
+                message.text = @robot.name + " " + message.text
+                user.directroom = address.conversation.id
             return message
 
         return new Message(user)
@@ -70,7 +82,11 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     toSendable: (context, message) ->
         @robot.logger.info "#{LogPrefix} toSendable"
         msg = message
-        conversationAddress = context.user.activity.address
+        conversationAddress = ''
+        if context.user.activity.address?
+             conversationAddress = context.user.activity.address
+        else
+             conversationAddress = context.user.directroom
 
         if typeof message is 'string'
             msg =
@@ -89,7 +105,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             if imageAttachment isnt null
                 msg.attachments.push(imageAttachment)
 
-        if msg.text?
+        if msg.text? and context.message?
             msg.text = hubotifyAtMentions(
                 msg.text,
                 getMentions(context.message.user.activity))
