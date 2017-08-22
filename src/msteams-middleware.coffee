@@ -5,9 +5,6 @@
 # Description:
 #   Middleware to make Hubot work well with Microsoft Teams
 #
-# Dependencies:
-# 	"hubot-botframework": "0.10.0"
-#
 # Configuration:
 #	HUBOT_OFFICE365_TENANT_FILTER
 #
