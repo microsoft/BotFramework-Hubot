@@ -132,9 +132,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     #  the activity's text.
     # 2. Prepends hubot's name to the message if this is a direct message.
     fixActivityForHubot = (activity, robot) ->
-        if not typeof activity?.text is 'string'
+        if not activity?.text? || typeof activity.text isnt 'string'
             return activity
-
         myChatId = activity?.address?.bot?.id
         if not myChatId?
             return activity
