@@ -28,10 +28,7 @@ class TextMiddleware extends BaseMiddleware
         user.activity = activity
 
         if activity.type == 'message'
-            messageId = activity.sourceEvent?.clientActivityId
-            if not messageId?
-                messageId = 'message-id'
-            return new TextMessage(user, activity.text, messageId)
+            return new TextMessage(user, activity.text, activity.sourceEvent?.clientActivityId || '')
         
         return new Message(user)
     
