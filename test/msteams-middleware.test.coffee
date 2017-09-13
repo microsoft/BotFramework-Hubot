@@ -37,9 +37,9 @@ describe 'MicrosoftTeamsMiddleware', ->
                         id: "19:conversation-id"
                     bot:
                         id: "bot-id"
-                user:
-                    id: "user-id"
-                    name: "user-name"
+                    user:
+                        id: "user-id"
+                        name: "user-name"
 
         it 'should allow messages without tenant id when tenant filter is empty', ->
             # Setup
@@ -171,7 +171,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it 'should prepend bot name in 1:1 chats', ->
             # Setup
-            event.address.conversation.id = event.user.id
+            event.address.conversation.id = event.address.user.id
             event.text = 'do something <at>Bot</at> and tell <at>User</at> about it'
             teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
 
@@ -221,9 +221,9 @@ describe 'MicrosoftTeamsMiddleware', ->
                                 id: "19:conversation-id"
                             bot:
                                 id: "bot-id"
-                        user:
-                            id: "user-id"
-                            name: "user-name"
+                            user:
+                                id: "user-id"
+                                name: "user-name"
             message = "message"
 
         it 'should create message object for string messages', ->
