@@ -1,5 +1,7 @@
 # Botframework adapter for Hubot
 
+[![npm version](https://badge.fury.io/js/hubot-botframework.svg)](https://badge.fury.io/js/hubot-botframework)
+
 # Installation
 Install `hubot`. Make sure to `npm install --save hubot-botframework` to add this module. Run the command `./bin/hubot -a botframework` to run the bot from your local computer.
 
