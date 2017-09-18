@@ -3,3 +3,5 @@ node_js:
   - "6"
 before_install:
   - npm i -g npm@latest
+after_success:
+- npm run coveralls

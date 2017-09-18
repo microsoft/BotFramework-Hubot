@@ -1,6 +1,6 @@
 # Botframework adapter for Hubot
 
-[![npm version](https://badge.fury.io/js/hubot-botframework.svg)](https://badge.fury.io/js/hubot-botframework)[![Build Status](https://travis-ci.org/Microsoft/BotFramework-Hubot.svg?branch=master)](https://travis-ci.org/Microsoft/BotFramework-Hubot)
+[![npm version](https://badge.fury.io/js/hubot-botframework.svg)](https://badge.fury.io/js/hubot-botframework) [![Build Status](https://travis-ci.org/Microsoft/BotFramework-Hubot.svg?branch=master)](https://travis-ci.org/Microsoft/BotFramework-Hubot) [![Coverage Status](https://coveralls.io/repos/github/Microsoft/BotFramework-Hubot/badge.svg?branch=master)](https://coveralls.io/github/Microsoft/BotFramework-Hubot?branch=master)
 
 # Installation
 Install `hubot`. Make sure to `npm install --save hubot-botframework` to add this module. Run the command `./bin/hubot -a botframework` to run the bot from your local computer.
