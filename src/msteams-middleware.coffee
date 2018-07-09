@@ -152,6 +152,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         roomId = getRoomId(activity)
         if roomId? and not roomId.startsWith("19:") and not activity.text.startsWith(robot.name)
             activity.text = "#{robot.name} #{activity.text}"
+
+        # remove the newline character at the beginning or end of the text
+        # if there are any
+        if activity.text.charAt(activity.text.length - 1) == '\n'
+            activity.text = activity.text.trim()
+        console.log(activity.text)
             
         return activity
 
