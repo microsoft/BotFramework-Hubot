@@ -44,8 +44,12 @@ class BotFrameworkAdapter extends Adapter
 
     handleActivity: (activity) ->
         @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
+        console.log("The activity parameter:")
+        console.log(activity)
         event = @using(activity.source).toReceivable(activity)
         if event?
+            console.log("bot is about to receive the event")
+            console.log(event)
             @robot.receive event
 
     send: (context, messages...) ->
