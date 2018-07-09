@@ -22,6 +22,7 @@
 #	billbliss
 #
 
+MicrosoftGraph = require '@microsoft/microsoft-graph-client'
 { Robot, TextMessage, Message, User } = require 'hubot'
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
 LogPrefix = "hubot-msteams:"
@@ -42,6 +43,17 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         if @allowedTenants.length > 0 && !@allowedTenants.includes(getTenantId(activity))
             @robot.logger.info "#{LogPrefix} Unauthorized tenant; ignoring activity"
             return null
+        
+        console.log("Checking booleans:----------------------------")
+        console.log(@robot.admins)
+        console.log(@robot.brain.get("admins"))
+
+        # Drop the activity is this user isn't authorized to send commands
+        # Ignores unauthorized commands for now, may change to display error message
+        authorizedUsers = @robot.brain.get("authorizedUsers")
+        if authorizedUsers.length > 0 && !authorizedUsers.includes(activity?.address?.user?.name)
+           @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
+           return null
 
         # Get the user
         user = getUser(activity)

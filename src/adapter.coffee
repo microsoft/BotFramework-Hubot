@@ -26,6 +26,17 @@ class BotFrameworkAdapter extends Adapter
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
+        # *** Adding my own variables
+        # Adding Hubot admins list -> will change env var name later
+        @admins = []
+        @authorizedUsers = []
+        if process.env.HUBOT_TEAMS_INITIAL_ADMINS?
+            robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
+            @admins = process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
+            @authorizedUsers = @admins.slice()
+        robot.brain.set("admins", @admins)
+        robot.brain.set("authorizedUsers", @authorizedUsers)
+
         @connector  = new BotBuilder.ChatConnector {
             appId: @appId
             appPassword: @appPassword
@@ -63,6 +74,8 @@ class BotFrameworkAdapter extends Adapter
             payload = @using(activity.source).toSendable(context, msg)
             if !Array.isArray(payload)
                 payload = [payload]
+            console.log("printing payload for reply: --------------------")
+            console.log(payload)
             @connector.send payload, (err, _) ->
                 if err
                     throw err
