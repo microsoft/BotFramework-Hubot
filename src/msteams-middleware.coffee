@@ -51,7 +51,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         # Drop the activity is this user isn't authorized to send commands
         # Ignores unauthorized commands for now, may change to display error message
         authorizedUsers = @robot.brain.get("authorizedUsers")
-        if authorizedUsers.length > 0 && !authorizedUsers.includes(activity?.address?.user?.name)
+        if authorizedUsers.length > 0 && !authorizedUsers.includes(getUserName(activity))
            @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
            return null
 
@@ -122,6 +122,10 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             name: activity?.address?.user?.name,
             tenant: getTenantId(activity)
         return user
+    
+    # Fetches the user's name from the activity
+    getUserName = (activity) ->
+        return activity?.address?.user?.name
 
     # Fetches the room id from the activity
     getRoomId = (activity) ->
