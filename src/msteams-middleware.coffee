@@ -39,19 +39,20 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     toReceivable: (activity) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
+        # Store the current user's aadObjectId
+
         # Drop the activity if it came from an unauthorized tenant
         if @allowedTenants.length > 0 && !@allowedTenants.includes(getTenantId(activity))
             @robot.logger.info "#{LogPrefix} Unauthorized tenant; ignoring activity"
             return null
         
         console.log("Checking booleans:----------------------------")
-        console.log(@robot.admins)
         console.log(@robot.brain.get("admins"))
 
-        # Drop the activity is this user isn't authorized to send commands
+        # Drop the activity if this user isn't authorized to send commands
         # Ignores unauthorized commands for now, may change to display error message
         authorizedUsers = @robot.brain.get("authorizedUsers")
-        if authorizedUsers.length > 0 && !authorizedUsers.includes(getUserName(activity))
+        if authorizedUsers.length > 0 && !authorizedUsers.includes(getUserAadObjectId(activity))
            @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
            return null
 
@@ -84,7 +85,60 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             imageAttachment = convertToImageAttachment(message)
             if imageAttachment?
                 delete response.text
-                response.attachments = [imageAttachment]
+                card = {
+                    'contentType': 'application/vnd.microsoft.card.adaptive',
+                    'content': {
+                        '$schema': 'http://adaptivecards.io/schemas/adaptive-card.json',
+                        'type': 'AdaptiveCard',
+                        'version': '1.0',
+                        'body': [
+                            {
+                                'type': 'Container',
+                                'speak': '<s>Hello!</s><s>Are you looking for a flight or a hotel?</s>',
+                                'items': [
+                                    {
+                                        'type': 'ColumnSet',
+                                        'columns': [
+                                            {
+                                                'type': 'Column',
+                                                'size': 'auto',
+                                                'items': [
+                                                    {
+                                                        'type': 'Image',
+                                                        'url': 'https://placeholdit.imgix.net/~text?txtsize=65&txt=Adaptive+Cards&w=300&h=300',
+                                                        'size': 'medium',
+                                                        'style': 'person'
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                'type': 'Column',
+                                                'size': 'stretch',
+                                                'items': [
+                                                    {
+                                                        'type': 'TextBlock',
+                                                        'text': 'Hello!',
+                                                        'weight': 'bolder',
+                                                        'isSubtle': true
+                                                    },
+                                                    {
+                                                        'type': 'TextBlock',
+                                                        'text': 'Are you looking for a flight or a hotel?',
+                                                        'wrap': true
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ],
+                        'actions': []
+                    }
+                }
+
+                #response.attachments = [imageAttachment]
+                response.attachments = [card]
 
         response = fixMessageForTeams(response, @robot)
 
@@ -121,11 +175,25 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             id: activity?.address?.user?.id,
             name: activity?.address?.user?.name,
             tenant: getTenantId(activity)
+            aadObjectId: getUserAadObjectId(activity)
         return user
     
     # Fetches the user's name from the activity
     getUserName = (activity) ->
         return activity?.address?.user?.name
+
+    # Fetches the user's AAD Object Id from the activity
+    getUserAadObjectId = (activity) ->
+        console.log("HIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
+        blah = "aaaa-blah"
+        activity?.address?.user[blah] = 
+            first: "does this work"
+            second: "yup"
+        console.log(activity?.address?.user[blah].zero == undefined)
+        console.log(activity?.address?.user[blah].first)
+        console.log(activity?.address?.user[blah].second)
+
+        return activity?.address?.user?.aadObjectId
 
     # Fetches the room id from the activity
     getRoomId = (activity) ->

@@ -59,8 +59,8 @@ class BotFrameworkAdapter extends Adapter
         console.log(activity)
         event = @using(activity.source).toReceivable(activity)
         if event?
-            console.log("bot is about to receive the event")
-            console.log(event)
+            #console.log("bot is about to receive the event")
+            #console.log(event)
             @robot.receive event
 
     send: (context, messages...) ->
