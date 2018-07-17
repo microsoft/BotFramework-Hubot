@@ -84,7 +84,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             
             imageAttachment = convertToImageAttachment(message)
             if imageAttachment?
-                delete response.text
                 card = {
                     'contentType': 'application/vnd.microsoft.card.adaptive',
                     'content': {
@@ -99,18 +98,18 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                                     {
                                         'type': 'ColumnSet',
                                         'columns': [
-                                            {
-                                                'type': 'Column',
-                                                'size': 'auto',
-                                                'items': [
-                                                    {
-                                                        'type': 'Image',
-                                                        'url': 'https://placeholdit.imgix.net/~text?txtsize=65&txt=Adaptive+Cards&w=300&h=300',
-                                                        'size': 'medium',
-                                                        'style': 'person'
-                                                    }
-                                                ]
-                                            },
+                                            # {
+                                            #     'type': 'Column',
+                                            #     'size': 'auto',
+                                            #     'items': [
+                                            #         {
+                                            #             'type': 'Image',
+                                            #             'url': 'https://placeholdit.imgix.net/~text?txtsize=65&txt=Adaptive+Cards&w=300&h=300',
+                                            #             'size': 'medium',
+                                            #             'style': 'person'
+                                            #         }
+                                            #     ]
+                                            # },
                                             {
                                                 'type': 'Column',
                                                 'size': 'stretch',
@@ -133,10 +132,88 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                                 ]
                             }
                         ],
-                        'actions': []
+                        'actions': [
+                        # Hotels Search form
+                            {
+                                'type': 'Action.ShowCard',
+                                'title': 'Hotels',
+                                'speak': '<s>Hotels</s>',
+                                'card': {
+                                    'type': 'AdaptiveCard',
+                                    'body': [
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'Welcome to the Hotels finder!',
+                                            'speak': '<s>Welcome to the Hotels finder!</s>',
+                                            'weight': 'bolder',
+                                            'size': 'large'
+                                        },
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'Please enter your destination:'
+                                        },
+                                        {
+                                            'type': 'Input.Text',
+                                            'id': 'destination',
+                                            'speak': '<s>Please enter your destination</s>',
+                                            'placeholder': 'Miami, Florida',
+                                            'style': 'text'
+                                        },
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'When do you want to check in?'
+                                        },
+                                        {
+                                            'type': 'Input.Date',
+                                            'id': 'checkin',
+                                            'speak': '<s>When do you want to check in?</s>'
+                                        },
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'How many nights do you want to stay?'
+                                        },
+                                        {
+                                            'type': 'Input.Number',
+                                            'id': 'nights',
+                                            'min': 1,
+                                            'max': 60,
+                                            'speak': '<s>How many nights do you want to stay?</s>'
+                                        }
+                                    ],
+                                    'actions': [
+                                        {
+                                            'type': 'Action.Submit',
+                                            'title': 'Search',
+                                            'speak': '<s>Search</s>',
+                                            'data': {
+                                                'text': "#{response.text}",
+                                                'type': 'hotelSearch'
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                'type': 'Action.ShowCard',
+                                'title': 'Flights',
+                                'speak': '<s>Flights</s>',
+                                'card': {
+                                    'type': 'AdaptiveCard',
+                                    'body': [
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'Flights is not implemented =(',
+                                            'speak': '<s>Flights is not implemented</s>',
+                                            'weight': 'bolder'
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
                     }
-                }
+                };
 
+                delete response.text
                 #response.attachments = [imageAttachment]
                 response.attachments = [card]
 
@@ -186,7 +263,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     getUserAadObjectId = (activity) ->
         console.log("HIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
         blah = "aaaa-blah"
-        activity?.address?.user[blah] = 
+        activity?.address?.user[blah] =
             first: "does this work"
             second: "yup"
         console.log(activity?.address?.user[blah].zero == undefined)
