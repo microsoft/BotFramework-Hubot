@@ -22,6 +22,7 @@
 #	billbliss
 #
 
+BotBuilder = require 'botbuilder'
 MicrosoftGraph = require '@microsoft/microsoft-graph-client'
 { Robot, TextMessage, Message, User } = require 'hubot'
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
@@ -91,7 +92,27 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 address: activity?.address
             
             imageAttachment = convertToImageAttachment(message)
-            if imageAttachment?
+
+            console.log("==============================")
+            console.log(context)
+
+            # *** Testing
+            # if response.text == "unicorns"
+            #     heroCard = new BotBuilder.HeroCard()
+            #     .title('The mythical card')
+            #     .subtitle('The SSR 2% card')
+            #     .text('The totally collector and not actually useful card')
+            #     .images([
+            #         BotBuilder.CardImage.create('https://sec.ch9.ms/ch9/7ff5/e07cfef0-aa3b-40bb-9baa-7c9ef8ff7ff5/buildreactionbotframework_960.jpg')
+            #     ])
+            #     .buttons([
+            #        BotBuilder.CardAction.imBack(activity, 'ping', 'Press This')
+            #     ])
+            #     delete response.text
+            #     response.attachments = [heroCard]
+
+
+            if response.text == "dragons"
                 card = {
                     'contentType': 'application/vnd.microsoft.card.adaptive',
                     'content': {
@@ -219,7 +240,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                             }
                         ]
                     }
-                };
+                }
 
                 delete response.text
                 #response.attachments = [imageAttachment]
@@ -269,15 +290,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
     # Fetches the user's AAD Object Id from the activity
     getUserAadObjectId = (activity) ->
-        console.log("HIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
-        blah = "aaaa-blah"
-        activity?.address?.user[blah] =
-            first: "does this work"
-            second: "yup"
-        console.log(activity?.address?.user[blah].zero == undefined)
-        console.log(activity?.address?.user[blah].first)
-        console.log(activity?.address?.user[blah].second)
-
         return activity?.address?.user?.aadObjectId
 
     # Fetches the room id from the activity
