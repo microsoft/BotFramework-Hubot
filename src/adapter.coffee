@@ -85,30 +85,30 @@ class BotFrameworkAdapter extends Adapter
                 payload = [payload]
 
             # ***
-            if payload[1]?.text == "unicorns"
+            # if payload[1]?.text == "unicorns"
                 
-                heroCard = new BotBuilder.HeroCard()
-                console.log("CARD IS DYING HERE")
-                button = new BotBuilder.CardAction.imBack()
-                button.data.title ='Follow up'
-                button.data.value = 'ping'
-                console.log("Button was constructed")
-                console.log(button)
-                # .title('The mythical card')
-                # .subtitle('The SSR 2% card')
-                # .text('The totally collector and not actually useful card')
-                # .images([
-                #      BotBuilder.CardImage.create('https://sec.ch9.ms/ch9/7ff5/e07cfef0-aa3b-40bb-9baa-7c9ef8ff7ff5/buildreactionbotframework_960.jpg')
-                # ])
-                heroCard.buttons([button])
-                console.log("CARD GOT BUILT AT LEAST")
-                console.log(heroCard)
+            #     heroCard = new BotBuilder.HeroCard()
+            #     console.log("CARD IS DYING HERE")
+            #     button = new BotBuilder.CardAction.imBack()
+            #     button.data.title ='Follow up'
+            #     button.data.value = 'ping'
+            #     console.log("Button was constructed")
+            #     console.log(button)
+            #     # .title('The mythical card')
+            #     # .subtitle('The SSR 2% card')
+            #     # .text('The totally collector and not actually useful card')
+            #     # .images([
+            #     #      BotBuilder.CardImage.create('https://sec.ch9.ms/ch9/7ff5/e07cfef0-aa3b-40bb-9baa-7c9ef8ff7ff5/buildreactionbotframework_960.jpg')
+            #     # ])
+            #     heroCard.buttons([button])
+            #     console.log("CARD GOT BUILT AT LEAST")
+            #     console.log(heroCard)
                 
-                delete payload[1].text
-                # console.log("Deleted text")
-                payload[1].attachments = [heroCard.toAttachment()]
-                # console.log("Set attachments:")
-                # console.log(payload[1].attachments)
+            #     delete payload[1].text
+            #     # console.log("Deleted text")
+            #     payload[1].attachments = [heroCard.toAttachment()]
+            #     # console.log("Set attachments:")
+            #     # console.log(payload[1].attachments)
             # ***
             
             console.log("printing payload for reply: --------------------")
