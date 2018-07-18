@@ -27,20 +27,23 @@ class BotFrameworkAdapter extends Adapter
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
         # Set initial admins if authorization is needed
-        @admins = []
-        @authorizedUsers = []
+        # @admins = []
+        # @authorizedUsers = []
 
         if process.env.HUBOT_TEAMS_INITIAL_ADMINS?
             robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
-            @admins = process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
-            @authorizedUsers = @admins.slice()
+            # @admins = process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
+            # @authorizedUsers = @admins.slice()
             # *** TESTING
-            # for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
-            #     @authorizedUsers[admin] = true
-            # robot.brain.set("authorizedUsers", @authorizedUsers)
-            # ***
-            robot.brain.set("admins", @admins)
+            @authorizedUsers = {}
+            for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
+                @authorizedUsers[admin] = true
             robot.brain.set("authorizedUsers", @authorizedUsers)
+
+
+            # ***
+            # robot.brain.set("admins", @admins)
+            # robot.brain.set("authorizedUsers", @authorizedUsers)
 
         @connector  = new BotBuilder.ChatConnector {
             appId: @appId

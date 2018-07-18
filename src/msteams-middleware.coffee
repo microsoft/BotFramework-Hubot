@@ -46,15 +46,23 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             @robot.logger.info "#{LogPrefix} Unauthorized tenant; ignoring activity"
             return null
         
-        console.log("Checking booleans:----------------------------")
-        console.log(@robot.brain.get("admins"))
+        # console.log("Checking booleans:----------------------------")
+        # console.log(@robot.brain.get("admins"))
 
         # Drop the activity if this user isn't authorized to send commands
         # Ignores unauthorized commands for now, may change to display error message
         authorizedUsers = @robot.brain.get("authorizedUsers")
-        if authorizedUsers && authorizedUsers.length > 0 && !authorizedUsers.includes(getUserAadObjectId(activity))
+        # if authorizedUsers && authorizedUsers.length > 0 && !authorizedUsers.includes(getUserAadObjectId(activity))
+        #    @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
+        #    return null
+        # *** Testing changing storage structure
+        console.log("*************************************************")
+        console.log(authorizedUsers[getUserAadObjectId(activity)])
+        if authorizedUsers && authorizedUsers.length > 0 && authorizedUsers[getUserAadObjectId(activity)]
            @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
            return null
+        # ***
+
 
         # Get the user
         user = getUser(activity)
