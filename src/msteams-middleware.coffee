@@ -22,6 +22,8 @@
 #	billbliss
 #
 
+BotBuilder = require 'botbuilder'
+MicrosoftGraph = require '@microsoft/microsoft-graph-client'
 { Robot, TextMessage, Message, User } = require 'hubot'
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
 LogPrefix = "hubot-msteams:"
@@ -38,10 +40,28 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     toReceivable: (activity) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
+        # Store the current user's aadObjectId
+
         # Drop the activity if it came from an unauthorized tenant
         if @allowedTenants.length > 0 && !@allowedTenants.includes(getTenantId(activity))
             @robot.logger.info "#{LogPrefix} Unauthorized tenant; ignoring activity"
             return null
+        
+        # console.log("Checking booleans:----------------------------")
+        # console.log(@robot.brain.get("admins"))
+
+        # # Drop the activity if this user isn't authorized to send commands
+        # # Ignores unauthorized commands for now, may change to display error message
+        # authorizedUsers = @robot.brain.get("authorizedUsers")
+
+        # console.log("*************************************************")
+        # console.log(authorizedUsers[getUserAadObjectId(activity)])
+
+        # if authorizedUsers[getUserAadObjectId(activity)] is undefined
+        #    @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
+        #    return null
+        # ***
+
 
         # Get the user
         user = getUser(activity)
@@ -70,9 +90,185 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 address: activity?.address
             
             imageAttachment = convertToImageAttachment(message)
-            if imageAttachment?
+            imageAttachment = convertToImageAttachment(message)
+
+            #console.log("==============================")
+            #console.log(context)
+
+            # *** Testing
+            # if response.text == "unicorns"
+            #     heroCard = new BotBuilder.HeroCard()
+            #     .title('The mythical card')
+            #     .subtitle('The SSR 2% card')
+            #     .text('The totally collector and not actually useful card')
+            #     .images([
+            #         BotBuilder.CardImage.create('https://sec.ch9.ms/ch9/7ff5/e07cfef0-aa3b-40bb-9baa-7c9ef8ff7ff5/buildreactionbotframework_960.jpg')
+            #     ])
+            #     .buttons([
+            #        BotBuilder.CardAction.imBack(activity, 'ping', 'Press This')
+            #     ])
+            #     delete response.text
+            #     response.attachments = [heroCard]
+            if response.text == "unicorns"
+                heroCard = new BotBuilder.HeroCard()
+                console.log("CARD IS DYING HERE")
+                button = new BotBuilder.CardAction.imBack()
+                button.data.title ='Follow up'
+                button.data.value = 'ping'
+                console.log("Button was constructed")
+                console.log(button)
+                # .title('The mythical card')
+                # .subtitle('The SSR 2% card')
+                # .text('The totally collector and not actually useful card')
+                # .images([
+                #      BotBuilder.CardImage.create('https://sec.ch9.ms/ch9/7ff5/e07cfef0-aa3b-40bb-9baa-7c9ef8ff7ff5/buildreactionbotframework_960.jpg')
+                # ])
+                image = new BotBuilder.CardImage().url("http://30.media.tumblr.com/tumblr_lisw5dD4Pu1qbbpjfo1_400.jpg")
+                heroCard.images([image])
+                heroCard.buttons([button])
+                console.log("CARD GOT BUILT AT LEAST")
+                console.log(heroCard)
+                
                 delete response.text
-                response.attachments = [imageAttachment]
+                # console.log("Deleted text")
+                response.attachments = [heroCard.toAttachment()]
+                # console.log("Set attachments:")
+                # console.log(payload[1].attachments)
+
+
+            if response.text == "dragons"
+                card = {
+                    'contentType': 'application/vnd.microsoft.card.adaptive',
+                    'content': {
+                        '$schema': 'http://adaptivecards.io/schemas/adaptive-card.json',
+                        'type': 'AdaptiveCard',
+                        'version': '1.0',
+                        'body': [
+                            {
+                                'type': 'Container',
+                                'speak': '<s>Hello!</s><s>Are you looking for a flight or a hotel?</s>',
+                                'items': [
+                                    {
+                                        'type': 'ColumnSet',
+                                        'columns': [
+                                            # {
+                                            #     'type': 'Column',
+                                            #     'size': 'auto',
+                                            #     'items': [
+                                            #         {
+                                            #             'type': 'Image',
+                                            #             'url': 'https://placeholdit.imgix.net/~text?txtsize=65&txt=Adaptive+Cards&w=300&h=300',
+                                            #             'size': 'medium',
+                                            #             'style': 'person'
+                                            #         }
+                                            #     ]
+                                            # },
+                                            {
+                                                'type': 'Column',
+                                                'size': 'stretch',
+                                                'items': [
+                                                    {
+                                                        'type': 'TextBlock',
+                                                        'text': 'Hello!',
+                                                        'weight': 'bolder',
+                                                        'isSubtle': true
+                                                    },
+                                                    {
+                                                        'type': 'TextBlock',
+                                                        'text': 'Are you looking for a flight or a hotel?',
+                                                        'wrap': true
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ],
+                        'actions': [
+                        # Hotels Search form
+                            {
+                                'type': 'Action.ShowCard',
+                                'title': 'Hotels',
+                                'speak': '<s>Hotels</s>',
+                                'card': {
+                                    'type': 'AdaptiveCard',
+                                    'body': [
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'Welcome to the Hotels finder!',
+                                            'speak': '<s>Welcome to the Hotels finder!</s>',
+                                            'weight': 'bolder',
+                                            'size': 'large'
+                                        },
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'Please enter your destination:'
+                                        },
+                                        {
+                                            'type': 'Input.Text',
+                                            'id': 'destination',
+                                            'speak': '<s>Please enter your destination</s>',
+                                            'placeholder': 'Miami, Florida',
+                                            'style': 'text'
+                                        },
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'When do you want to check in?'
+                                        },
+                                        {
+                                            'type': 'Input.Date',
+                                            'id': 'checkin',
+                                            'speak': '<s>When do you want to check in?</s>'
+                                        },
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'How many nights do you want to stay?'
+                                        },
+                                        {
+                                            'type': 'Input.Number',
+                                            'id': 'nights',
+                                            'min': 1,
+                                            'max': 60,
+                                            'speak': '<s>How many nights do you want to stay?</s>'
+                                        }
+                                    ],
+                                    'actions': [
+                                        {
+                                            'type': 'Action.Submit',
+                                            'title': 'Search',
+                                            'speak': '<s>Search</s>',
+                                            'data': {
+                                                'text': "#{response.text}",
+                                                'type': 'hotelSearch'
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                'type': 'Action.ShowCard',
+                                'title': 'Flights',
+                                'speak': '<s>Flights</s>',
+                                'card': {
+                                    'type': 'AdaptiveCard',
+                                    'body': [
+                                        {
+                                            'type': 'TextBlock',
+                                            'text': 'Flights is not implemented =(',
+                                            'speak': '<s>Flights is not implemented</s>',
+                                            'weight': 'bolder'
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+
+                delete response.text
+                #response.attachments = [imageAttachment]
+                response.attachments = [card]
 
         response = fixMessageForTeams(response, @robot)
 
@@ -109,7 +305,16 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             id: activity?.address?.user?.id,
             name: activity?.address?.user?.name,
             tenant: getTenantId(activity)
+            aadObjectId: getUserAadObjectId(activity)
         return user
+    
+    # Fetches the user's name from the activity
+    getUserName = (activity) ->
+        return activity?.address?.user?.name
+
+    # Fetches the user's AAD Object Id from the activity
+    getUserAadObjectId = (activity) ->
+        return activity?.address?.user?.aadObjectId
 
     # Fetches the room id from the activity
     getRoomId = (activity) ->
@@ -152,6 +357,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         roomId = getRoomId(activity)
         if roomId? and not roomId.startsWith("19:") and not activity.text.startsWith(robot.name)
             activity.text = "#{robot.name} #{activity.text}"
+
+        # remove the newline character at the beginning or end of the text
+        # if there are any
+        if activity.text.charAt(activity.text.length - 1) == '\n'
+            activity.text = activity.text.trim()
+        console.log(activity.text)
             
         return activity
 
