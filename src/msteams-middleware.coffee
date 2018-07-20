@@ -50,18 +50,16 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         # console.log("Checking booleans:----------------------------")
         # console.log(@robot.brain.get("admins"))
 
-        # Drop the activity if this user isn't authorized to send commands
-        # Ignores unauthorized commands for now, may change to display error message
-        authorizedUsers = @robot.brain.get("authorizedUsers")
-        # if authorizedUsers && authorizedUsers.length > 0 && !authorizedUsers.includes(getUserAadObjectId(activity))
+        # # Drop the activity if this user isn't authorized to send commands
+        # # Ignores unauthorized commands for now, may change to display error message
+        # authorizedUsers = @robot.brain.get("authorizedUsers")
+
+        # console.log("*************************************************")
+        # console.log(authorizedUsers[getUserAadObjectId(activity)])
+
+        # if authorizedUsers[getUserAadObjectId(activity)] is undefined
         #    @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
         #    return null
-        # *** Testing changing storage structure
-        console.log("*************************************************")
-        console.log(authorizedUsers[getUserAadObjectId(activity)])
-        if authorizedUsers && authorizedUsers.length > 0 && authorizedUsers[getUserAadObjectId(activity)]
-           @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
-           return null
         # ***
 
 
@@ -92,9 +90,10 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 address: activity?.address
             
             imageAttachment = convertToImageAttachment(message)
+            imageAttachment = convertToImageAttachment(message)
 
-            console.log("==============================")
-            console.log(context)
+            #console.log("==============================")
+            #console.log(context)
 
             # *** Testing
             # if response.text == "unicorns"
@@ -124,6 +123,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 # .images([
                 #      BotBuilder.CardImage.create('https://sec.ch9.ms/ch9/7ff5/e07cfef0-aa3b-40bb-9baa-7c9ef8ff7ff5/buildreactionbotframework_960.jpg')
                 # ])
+                image = new BotBuilder.CardImage().url("http://30.media.tumblr.com/tumblr_lisw5dD4Pu1qbbpjfo1_400.jpg")
+                heroCard.images([image])
                 heroCard.buttons([button])
                 console.log("CARD GOT BUILT AT LEAST")
                 console.log(heroCard)

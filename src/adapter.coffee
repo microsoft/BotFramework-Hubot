@@ -22,7 +22,7 @@ class BotFrameworkAdapter extends Adapter
     constructor: (robot) ->
         super robot
         @appId = process.env.BOTBUILDER_APP_ID
-        @appPassword = process.env.BOTBUILDER_APP_PASSWORD
+        @appPassword = process.env.BOTBUILDER_APP_PASSWORD       
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
@@ -30,7 +30,8 @@ class BotFrameworkAdapter extends Adapter
         # @admins = []
         # @authorizedUsers = []
 
-        if process.env.HUBOT_TEAMS_INITIAL_ADMINS?
+        # Initial Admins should be required
+        if process.env.HUBOT_TEAMS_INITIAL_ADMINS
             robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
             # @admins = process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
             # @authorizedUsers = @admins.slice()
@@ -39,6 +40,8 @@ class BotFrameworkAdapter extends Adapter
             for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
                 @authorizedUsers[admin] = true
             robot.brain.set("authorizedUsers", @authorizedUsers)
+        else
+            throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required")
 
 
             # ***
@@ -65,6 +68,15 @@ class BotFrameworkAdapter extends Adapter
         @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
         console.log("The activity parameter:")
         console.log(activity)
+
+        # Drop the activity if the user cannot be authenticated with their
+        # AAD Object Id or if the user is unauthorized
+        authorizedUsers = @robot.brain.get("authorizedUsers")
+        aadObjectId = activity?.address?.user?.aadObjectId
+        if aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined
+           @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
+           return
+
         event = @using(activity.source).toReceivable(activity)
         if event?
             #console.log("bot is about to receive the event")
