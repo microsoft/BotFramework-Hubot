@@ -23,6 +23,7 @@ describe 'BaseMiddleware', ->
         robot = null
         event = null
         beforeEach ->
+            process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,eight888-four-4444-fore-twelve121212'
             robot = new MockRobot
             event =
                 type: 'message'
@@ -80,6 +81,7 @@ describe 'TextMiddleware', ->
         robot = null
         event = null
         beforeEach ->
+            process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,eight888-four-4444-fore-twelve121212'
             robot = new MockRobot
             event =
                 type: 'message'

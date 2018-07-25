@@ -23,7 +23,8 @@
 #
 
 BotBuilder = require 'botbuilder'
-MicrosoftGraph = require '@microsoft/microsoft-graph-client'
+#BotBuilderTeams = require 'botbuilder-teams'
+#MicrosoftGraph = require '@microsoft/microsoft-graph-client'
 { Robot, TextMessage, Message, User } = require 'hubot'
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
 LogPrefix = "hubot-msteams:"
@@ -37,10 +38,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             @allowedTenants = process.env.HUBOT_OFFICE365_TENANT_FILTER.split(",")
             @robot.logger.info("#{LogPrefix} Restricting tenants to #{JSON.stringify(@allowedTenants)}")
 
-    toReceivable: (activity) ->
+    toReceivable: (activity, chatMembers) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
-
-        # Store the current user's aadObjectId
 
         # Drop the activity if it came from an unauthorized tenant
         if @allowedTenants.length > 0 && !@allowedTenants.includes(getTenantId(activity))
@@ -54,13 +53,9 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         # # Ignores unauthorized commands for now, may change to display error message
         # authorizedUsers = @robot.brain.get("authorizedUsers")
 
-        # console.log("*************************************************")
-        # console.log(authorizedUsers[getUserAadObjectId(activity)])
-
         # if authorizedUsers[getUserAadObjectId(activity)] is undefined
         #    @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
         #    return null
-        # ***
 
 
         # Get the user
@@ -72,10 +67,9 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         user.room = getRoomId(activity)
 
         if activity.type == 'message'
-            activity = fixActivityForHubot(activity, @robot)
+            activity = fixActivityForHubot(activity, @robot, chatMembers)
             message = new TextMessage(user, activity.text, activity.address.id)
             return message
-
         return new Message(user)
 
     toSendable: (context, message) ->
@@ -84,59 +78,81 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
         response = message
         if typeof message is 'string'
+            # Trim leading or ending whitespace
             response =
                 type: 'message'
-                text: message
+                text: message.trim()
                 address: activity?.address
             
-            imageAttachment = convertToImageAttachment(message)
-            imageAttachment = convertToImageAttachment(message)
+            # *** Testing card templates checks
+            # if it matches, will fill it, otherwise, 
 
-            #console.log("==============================")
-            #console.log(context)
 
-            # *** Testing
-            # if response.text == "unicorns"
-            #     heroCard = new BotBuilder.HeroCard()
-            #     .title('The mythical card')
-            #     .subtitle('The SSR 2% card')
-            #     .text('The totally collector and not actually useful card')
-            #     .images([
-            #         BotBuilder.CardImage.create('https://sec.ch9.ms/ch9/7ff5/e07cfef0-aa3b-40bb-9baa-7c9ef8ff7ff5/buildreactionbotframework_960.jpg')
-            #     ])
-            #     .buttons([
-            #        BotBuilder.CardAction.imBack(activity, 'ping', 'Press This')
-            #     ])
-            #     delete response.text
-            #     response.attachments = [heroCard]
-            if response.text == "unicorns"
+            imageAttachment = convertToImageAttachment(message)
+            # Create a card with buttons for each
+            if response.text == "MS Teams Command list card"
                 heroCard = new BotBuilder.HeroCard()
-                console.log("CARD IS DYING HERE")
+                heroCard.title('Hubot commands')
+                buttons = []
+                text = ""
+                for command in @robot.commands
+                    if text == ""
+                        text = command
+                    else
+                        text = "#{text}\n#{command}"
+                    parts = command.split(" - ")
+                    commandKeywords = parts[0].replace("hubot ", "")
+                    console.log(commandKeywords)
+
+                    button = new BotBuilder.CardAction.imBack()
+                    #button.title(command)
+                    button.title(commandKeywords)
+                    button.value(commandKeywords)
+                    buttons.push button
+                heroCard.buttons(buttons)
+                text = escapeLessThan(text)
+                text = escapeNewLines(text)
+                heroCard.text(text)
+
+                delete response.text
+                response.attachments = [heroCard.toAttachment()]
+
+            if response.text == "List the admins"
+                heroCard = new BotBuilder.HeroCard()
+                heroCard.title('Teams Admins')
+                
+                authorizedUsers = @robot.brain.get("authorizedUsers")
+
+                text = ""
+                for user, isAdmin of authorizedUsers
+                    if isAdmin
+                        if text == ""
+                            text = user
+                        else
+                            text = """#{text}
+                                    #{user}"""
+                text = escapeLessThan(text)
+                text = escapeNewLines(text)
+                heroCard.text(text)
+
+                delete response.text
+                response.attachments = [heroCard.toAttachment()]
+
+            else if response.text == "unicorns"
+                heroCard = new BotBuilder.HeroCard()
+
                 button = new BotBuilder.CardAction.imBack()
                 button.data.title ='Follow up'
                 button.data.value = 'ping'
-                console.log("Button was constructed")
-                console.log(button)
-                # .title('The mythical card')
-                # .subtitle('The SSR 2% card')
-                # .text('The totally collector and not actually useful card')
-                # .images([
-                #      BotBuilder.CardImage.create('https://sec.ch9.ms/ch9/7ff5/e07cfef0-aa3b-40bb-9baa-7c9ef8ff7ff5/buildreactionbotframework_960.jpg')
-                # ])
+
                 image = new BotBuilder.CardImage().url("http://30.media.tumblr.com/tumblr_lisw5dD4Pu1qbbpjfo1_400.jpg")
                 heroCard.images([image])
                 heroCard.buttons([button])
-                console.log("CARD GOT BUILT AT LEAST")
-                console.log(heroCard)
                 
                 delete response.text
-                # console.log("Deleted text")
                 response.attachments = [heroCard.toAttachment()]
-                # console.log("Set attachments:")
-                # console.log(payload[1].attachments)
 
-
-            if response.text == "dragons"
+            else if response.text == "dragons"
                 card = {
                     'contentType': 'application/vnd.microsoft.card.adaptive',
                     'content': {
@@ -151,18 +167,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                                     {
                                         'type': 'ColumnSet',
                                         'columns': [
-                                            # {
-                                            #     'type': 'Column',
-                                            #     'size': 'auto',
-                                            #     'items': [
-                                            #         {
-                                            #             'type': 'Image',
-                                            #             'url': 'https://placeholdit.imgix.net/~text?txtsize=65&txt=Adaptive+Cards&w=300&h=300',
-                                            #             'size': 'medium',
-                                            #             'style': 'person'
-                                            #         }
-                                            #     ]
-                                            # },
                                             {
                                                 'type': 'Column',
                                                 'size': 'stretch',
@@ -265,10 +269,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                         ]
                     }
                 }
-
                 delete response.text
-                #response.attachments = [imageAttachment]
                 response.attachments = [card]
+            
+            else if imageAttachment?
+                delete response.text
+                response.attachments = [imageAttachment]
 
         response = fixMessageForTeams(response, @robot)
 
@@ -332,25 +338,32 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         return entities.filter((entity) -> entity.type == "mention" && (not userId? || userId == entity.mentioned?.id))
 
     # Fixes the activity to have the proper information for Hubot
-    # 1. Replaces all occurances of the channel's bot at mention name with the configured name in hubot.
+    #  1. Replaces all occurrences of the channel's bot at mention name with the configured name in hubot.
     #  The hubot's configured name might not be the same name that is sent from the chat service in
     #  the activity's text.
-    # 2. Prepends hubot's name to the message if this is a direct message.
-    fixActivityForHubot = (activity, robot) ->
+    #  2. Replaces all occurrences of @ mentions to users with their aad object id if the user is
+    #  on the roster of chanenl members from Teams. If a mentioned user is not in the chat roster,
+    #  the mention is replaced with their name.
+    #  3. Prepends hubot's name to the message if this is a direct message.
+    fixActivityForHubot = (activity, robot, chatMembers) ->
         if not activity?.text? || typeof activity.text isnt 'string'
             return activity
         myChatId = activity?.address?.bot?.id
         if not myChatId?
             return activity
 
-        # replace all @ mentions with the robot's name
+        # Replace all @ mentions to the bot with the bot's name, and replace
+        # all @ mentions of users with a known aad object id with their aad
+        # object id.
         mentions = getMentions(activity)
         for mention in mentions
             mentionTextRegExp = new RegExp(escapeRegExp(mention.text), "gi")
             replacement = mention.mentioned.name
             if mention.mentioned.id == myChatId
                 replacement = robot.name
-
+            for member in chatMembers
+                if mention.mentioned.id == member.id
+                    replacement = member.objectId
             activity.text = activity.text.replace(mentionTextRegExp, replacement)
 
         # prepends the robot's name for direct messages
@@ -358,11 +371,10 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         if roomId? and not roomId.startsWith("19:") and not activity.text.startsWith(robot.name)
             activity.text = "#{robot.name} #{activity.text}"
 
-        # remove the newline character at the beginning or end of the text
+        # Remove the newline character at the beginning or end of the text,
         # if there are any
         if activity.text.charAt(activity.text.length - 1) == '\n'
             activity.text = activity.text.trim()
-        console.log(activity.text)
             
         return activity
 
@@ -372,10 +384,10 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # 1. Replaces all slack @ mentions with Teams @ mentions
     #  Slack mentions take the form of <@[username or id]|[mention text]>
     #  We have to convert this into a mention object which needs the id.
+    # Adds escapes for all < such as in the hubot help command
     fixMessageForTeams = (response, robot) ->
         if not response?.text?
             return response
-
         mentions = []
         while match = slackMentionRegExp.exec(response.text)
             foundUser = null
@@ -400,11 +412,27 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             response.text = response.text.replace(mentionTextRegExp, mention.text)
             delete mention.full
         response.entities = mentions
+
+        # Escape <
+        if response.text.search("hubot") == 0
+            response.text = escapeLessThan(response.text)
+
+        # Replace new lines with <br>
+        response.text = escapeNewLines(response.text)
+
         return response
 
     escapeRegExp = (str) ->
         return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
 
+    escapeLessThan = (str) ->
+        #str = str.replace(/</g, "`<")
+        str = str.replace(/</g, "&lt;")
+        #str = str.replace(/>/g, ">`")
+        return str
+
+    escapeNewLines = (str) ->
+        return str.replace(/\n/g, "<br/>")
 
 registerMiddleware 'msteams', MicrosoftTeamsMiddleware
 
