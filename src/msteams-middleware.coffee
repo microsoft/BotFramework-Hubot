@@ -413,8 +413,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             delete mention.full
         response.entities = mentions
 
-        # Escape < and > with words in the middle for help commands (start with 'hubot'
-        # ex: 'hubot ping - hubot responds with pong')
+        # Escape <
         if response.text.search("hubot") == 0
             response.text = escapeLessThan(response.text)
 
