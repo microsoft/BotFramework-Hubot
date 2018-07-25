@@ -8,8 +8,11 @@ describe 'MicrosoftTeamsMiddleware', ->
     describe 'toReceivable', ->
         robot = null
         event = null
+        chatMembers = null
         beforeEach ->
             delete process.env.HUBOT_OFFICE365_TENANT_FILTER
+            process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,eight888-four-4444-fore-twelve121212'
+            
             robot = new MockRobot
             event =
                 type: 'message'
@@ -29,6 +32,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                         id: "user-id"
                         name: "user-name"
                 ]
+                attachments: []
                 sourceEvent:
                     tenant:
                         id: "tenant-id"
@@ -40,6 +44,27 @@ describe 'MicrosoftTeamsMiddleware', ->
                     user:
                         id: "user-id"
                         name: "user-name"
+                        aadObjectId: 'eight888-four-4444-fore-twelve121212'
+            chatMembers = [
+                {
+                    id: 'user-id',
+                    objectId: 'eight888-four-4444-fore-twelve121212',
+                    name: 'user-name',
+                    givenName: 'user-',
+                    surname: 'name',
+                    email: 'em@ai.l',
+                    userPrincipalName: 'em@ai.l'
+                },
+                {
+                    id: 'user2-id',
+                    objectId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                    name: 'user2 two',
+                    givenName: 'user2',
+                    surname: 'two',
+                    email: 'em@ai.l2',
+                    userPrincipalName: 'em@ai.l2'
+                }
+            ]
 
         it 'should allow messages without tenant id when tenant filter is empty', ->
             # Setup
@@ -49,7 +74,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
@@ -62,7 +87,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
@@ -76,7 +101,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
@@ -91,7 +116,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
@@ -105,7 +130,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
@@ -119,7 +144,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
@@ -133,41 +158,98 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
             expect(receivable.text).to.equal(event.text)
 
 
-        it 'should replace all @ mentions', ->
+        it 'should replace all @ mentions to the bot with the bot name', ->
             # Setup
             teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
 
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
-            expected = "#{robot.name} do something #{robot.name} and tell user-name about it"
+            expected = "#{robot.name} do something #{robot.name} and tell #{event.address.user.aadObjectId} about it"
+            expect(receivable.text).to.equal(expected)
+        
+        it 'should replace all @ mentions to chat users with their aad object id', ->
+            # Setup
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            event.text = '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> and <at>User2</at> about it'
+            user2 = 
+                id: 'user2-id',
+                objectId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                name: 'user2-name',
+                givenName: 'user2-',
+                surname: 'name2',
+                email: 'em@ai.l2',
+                userPrincipalName: 'em@ai.l2'
+
+            event.entities.push(
+                type: "mention"
+                text: "<at>User2</at>"
+                mentioned:
+                    id: user2.id
+                    name: user2.name
+            )
+            chatMembers.push(
+                user2
+            )
+
+            # Action
+            receivable = null
+            expect(() ->
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+            ).to.not.throw()
+
+            # Assert
+            expected = "#{robot.name} do something #{robot.name} and tell #{event.address.user.aadObjectId} and #{user2.objectId} about it"
             expect(receivable.text).to.equal(expected)
 
-        it 'should replace at mentions even when entities is not an array', ->
+        it 'should replace @ mentions even when entities is not an array', ->
             # Setup
             event.entities = event.entities[0]
+            event.text = "<at>Bot</at> do something <at>Bot</at>"
             teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
 
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
-            expected = "#{robot.name} do something #{robot.name} and tell <at>User</at> about it"
+            expected = "#{robot.name} do something #{robot.name}"
             expect(receivable.text).to.equal(expected)
+        
+        it 'should replace @ mentions to non-chat roster users with their name', ->
+            # Setup
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            event.entities[1] =
+                type: "mention"
+                text: "<at>User</at>"
+                mentioned:
+                    id: "not-a-valid-user-id"
+                    name: "not-a-user"
+
+            # Action
+            receivable = null
+            expect(() ->
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+            ).to.not.throw()
+
+            # Assert
+            expected = "#{robot.name} do something #{robot.name} and tell #{event.entities[1].mentioned.name} about it"
+            expect(receivable.text).to.equal(expected)
+
+            
 
         it 'should prepend bot name in 1:1 chats', ->
             # Setup
@@ -178,11 +260,11 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event)
+                receivable = teamsMiddleware.toReceivable(event, chatMembers)
             ).to.not.throw()
 
             # Assert
-            expected = "#{robot.name} do something #{robot.name} and tell user-name about it"
+            expected = "#{robot.name} do something #{robot.name} and tell #{event.address.user.aadObjectId} about it"
             expect(receivable.text).to.equal(expected)
 
     describe 'toSendable', ->
@@ -438,4 +520,48 @@ describe 'MicrosoftTeamsMiddleware', ->
                 address: context.user.activity.address
             ]
 
+            expect(sendable).to.deep.equal(expected)
+        
+        it 'should construct card for command list', ->
+            # Setup
+            message = "MS Teams Command list card"
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+
+            # Action
+            sendable = null
+            expect(() ->
+                sendable = teamsMiddleware.toSendable(context, message)
+            ).to.not.throw()
+
+            # Verify
+            expected = [
+                type: 'typing',
+                address: context.user.activity.address
+            ,
+                type: 'message'
+                attachments: [
+                    {
+                        "content": {
+                            "text": """hubot a - does something a
+                            hubot b - does something b"""
+                            "title": "Hubot commands"
+                            "buttons": [
+                                {
+                                    "title": "a"
+                                    "type": "imBack"
+                                    "value": "a"
+                                },
+                                {
+                                    "title": "b"
+                                    "type": "imBack"
+                                    "value": "b"
+                                }
+                            ]
+                        }
+                        "contentType": "application/vnd.microsoft.card.hero"
+                    }
+                ]
+                address: context.user.activity.address
+            ]
+        
             expect(sendable).to.deep.equal(expected)

@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "botbuilder": ">=3.5.0",
+    "botbuilder-teams": ">=0.2.1",
     "parent-require": "^1.0.0"
   },
   "peerDependencies": {
