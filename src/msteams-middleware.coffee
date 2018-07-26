@@ -338,6 +338,9 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         return entities.filter((entity) -> entity.type == "mention" && (not userId? || userId == entity.mentioned?.id))
 
     # Fixes the activity to have the proper information for Hubot
+    #  0. Constructs the text command to send to hubot if the event is from a
+    #  submit on an adaptive card (containing the value property). 
+    #  ***
     #  1. Replaces all occurrences of the channel's bot at mention name with the configured name in hubot.
     #  The hubot's configured name might not be the same name that is sent from the chat service in
     #  the activity's text.
@@ -346,6 +349,24 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     #  the mention is replaced with their name.
     #  3. Prepends hubot's name to the message if this is a direct message.
     fixActivityForHubot = (activity, robot, chatMembers) ->
+        console.log("-----------------------")
+        console.log(activity?.value == true)
+        if activity?.value
+            data = activity.value
+            # Get the first command part -> always contains at least 'hubot'
+            text = data.query0
+            text = text.replace("hubot", robot.name)
+
+            # If there are inputs, add those and the next query part
+            # if there is one
+            for i in [0 ... data.numInputs]
+                text = text + data["input#{i}"]
+                if data["query" + (i + 1)]
+                    text = text + data["query" + (i + 1)]
+
+            activity.text = text
+            return activity
+
         if not activity?.text? || typeof activity.text isnt 'string'
             return activity
         myChatId = activity?.address?.bot?.id

@@ -56,7 +56,8 @@ class BotFrameworkAdapter extends Adapter
 
     handleActivity: (activity) ->
         @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
-        console.log(activity)
+        console.log("The activity parameter:")
+        console.log(JSON.stringify(activity, null, 2))
 
         # Drop the activity if the user cannot be authenticated with their
         # AAD Object Id or if the user is unauthorized
