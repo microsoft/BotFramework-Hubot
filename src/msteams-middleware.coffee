@@ -23,6 +23,7 @@
 #
 
 BotBuilder = require 'botbuilder'
+HubotResponseCards = require './hubot-response-cards'
 #BotBuilderTeams = require 'botbuilder-teams'
 #MicrosoftGraph = require '@microsoft/microsoft-graph-client'
 { Robot, TextMessage, Message, User } = require 'hubot'
@@ -85,8 +86,25 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 address: activity?.address
             
             # *** Testing card templates checks
-            # if it matches, will fill it, otherwise, 
+            # if it matches, will fill it, otherwise,
+            # card = constructHubotResponseCard(activity, response)
 
+            # If the query sent by the user should trigger a card,
+            # construct the card to attach to the response
+            # and remove sentQuery from the brain
+            sentQuery = @robot.brain.get("hubotQuery")
+            if sentQuery
+                card = HubotResponseCards.maybeConstructCard(activity, response, sentQuery)
+                console.log("=========================")
+                console.log(card)
+                console.log(card is not null)
+                console.log(card is not undefined)
+                console.log(card != null)
+                console.log(card is not undefined)
+                if card != null
+                    delete response.text
+                    response.attachments = [card]
+                @robot.brain.remove("sentQuery")
 
             imageAttachment = convertToImageAttachment(message)
             # Create a card with buttons for each
@@ -106,7 +124,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
                     button = new BotBuilder.CardAction.imBack()
                     #button.title(command)
-                    button.title(commandKeywords)
+                    button.title(escapeLessThan(commandKeywords))
                     button.value(commandKeywords)
                     buttons.push button
                 heroCard.buttons(buttons)
@@ -117,7 +135,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 delete response.text
                 response.attachments = [heroCard.toAttachment()]
 
-            if response.text == "List the admins"
+            else if response.text == "List the admins"
                 heroCard = new BotBuilder.HeroCard()
                 heroCard.title('Teams Admins')
                 
@@ -454,6 +472,11 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
     escapeNewLines = (str) ->
         return str.replace(/\n/g, "<br/>")
+
+    # On call, we know that response.text is text
+    constructHubotResponseCard = (activity) ->
+        # Check if response.text matches any of the query templates
+
 
 registerMiddleware 'msteams', MicrosoftTeamsMiddleware
 
