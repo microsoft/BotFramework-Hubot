@@ -80,9 +80,6 @@ class BotFrameworkAdapter extends Adapter
                 console.log("Hubot event:")
                 console.log(event)
 
-                # Store the query in the brain
-                @robot.brain.set("hubotQuery", event.text)
-
                 @robot.receive event
 
     send: (context, messages...) ->

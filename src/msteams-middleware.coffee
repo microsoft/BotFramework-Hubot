@@ -92,19 +92,16 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             # If the query sent by the user should trigger a card,
             # construct the card to attach to the response
             # and remove sentQuery from the brain
-            sentQuery = @robot.brain.get("hubotQuery")
-            if sentQuery
-                card = HubotResponseCards.maybeConstructCard(activity, response, sentQuery)
-                console.log("=========================")
-                console.log(card)
-                console.log(card is not null)
-                console.log(card is not undefined)
-                console.log(card != null)
-                console.log(card is not undefined)
-                if card != null
-                    delete response.text
-                    response.attachments = [card]
-                @robot.brain.remove("sentQuery")
+            card = HubotResponseCards.maybeConstructCard(activity, response, activity.text)
+            # console.log("=========================")
+            # console.log(card)
+            # console.log(card is not null)
+            # console.log(card is not undefined)
+            # console.log(card != null)
+            # console.log(card is not undefined)
+            if card != null
+                delete response.text
+                response.attachments = [card]
 
             imageAttachment = convertToImageAttachment(message)
             # Create a card with buttons for each
@@ -367,20 +364,34 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     #  the mention is replaced with their name.
     #  3. Prepends hubot's name to the message if this is a direct message.
     fixActivityForHubot = (activity, robot, chatMembers) ->
-        console.log("-----------------------")
-        console.log(activity?.value == true)
-        if activity?.value
+        if activity?.value != undefined
             data = activity.value
-            # Get the first command part -> always contains at least 'hubot'
-            text = data.query0
+            followUpQuery = data.followUpQuery
+            console.log("********************")
+            console.log(data)
+            # Get the first command part. A command always begins with a text part
+            # as commands always beging with the word 'hubot'
+            text = data[followUpQuery + " - query0"]
             text = text.replace("hubot", robot.name)
+            console.log(text)
 
             # If there are inputs, add those and the next query part
             # if there is one
-            for i in [0 ... data.numInputs]
-                text = text + data["input#{i}"]
-                if data["query" + (i + 1)]
-                    text = text + data["query" + (i + 1)]
+            i = 0
+            input = data[followUpQuery + " - input#{i}"]
+            while input != undefined
+                text = text + input
+                nextTextPart = data[followUpQuery + " - query" + (i + 1)]
+                if nextTextPart != undefined
+                    text = text + nextTextPart
+                i++
+                input = data[followUpQuery + " - input#{i}"]
+
+            # for i in [0 ... 1]
+            #     text = text + data["input#{i}"]
+            #     if data["query" + (i + 1)]
+            #         text = text + data["query" + (i + 1)]
+            console.log(text)
 
             activity.text = text
             return activity
