@@ -7,23 +7,9 @@
 # structure are included, not all hubot commands.
 
 HubotQueryParts = {
-    "gho list public repos":
+    "gho":
         "textParts": [
-            "hubot gho list public repos"
-        ]
-    "echo <text>":
-        "textParts": [
-            "hubot echo "
-        ]
-        "inputParts": [
-            "Echo what text? (Max 1024 characters)"
-        ]
-    "help <query>":
-        "textParts": [
-            "hubot help "
-        ]
-        "inputParts": [
-            "Search for what query in help? (Max 1024 characters)"
+            "hubot gho"
         ]
     "gho list (teams|repos|members)":
         "textParts": [
@@ -31,6 +17,10 @@ HubotQueryParts = {
         ]
         "inputParts": [
             "List what?/teams or repos or members"
+        ]
+    "gho list public repos":
+        "textParts": [
+            "hubot gho list public repos"
         ]
     "gho create team <team name>":
         "textParts": [

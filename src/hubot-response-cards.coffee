@@ -4,28 +4,97 @@
 HubotQueryParts = require './hubot-query-parts'
 
 maybeConstructCard = (activity, response, query) ->
+    # Check if the response is from a list commands follow up button press.
+    # If so, construct the needed input card and return it
+    index = query.search("generate input card")
+    if (index != -1)
+        return constructInputCard(query.substring(0, index), response.text)
+
     # Check if response.text matches one of the reg exps in the LUT
     for regex of HubotResponseCards
         regexObject = new RegExp(regex)
         if regexObject.test(query)
-            card = initializeAdaptiveCard(query, response.text)
-            # card.content.body[0].text = response.text
-            # card.content.body[0].speak = "<s>" + response.text + "</s>"
+            card = initializeAdaptiveCard(query)
+            card.content.body.push(addTextBlock(response.text))
             card.content.actions = getFollowUpButtons(query, regex)
             return card
     return null
 
-    # *** v2
-    # Split into array of words minus the robot's name at the beginning,
-    # so assumes the query is at least the robot's name (*** check this)
-    # words = response.text.split(" ")
-    # words = words.slice(1)
+# Constructs an input card
+constructInputCard = (query, text) ->
+    card = initializeAdaptiveCard(query)
+    console.log(text)
+    queryParts = HubotQueryParts[text]
+    console.log(queryParts)
+    # Create the input fields of the sub card
+    for i in [0 ... queryParts.inputParts.length]
+        console.log("*********")
+        console.log(queryParts.inputParts.length)
+        inputPart = queryParts.inputParts[i]
+        index = inputPart.search('/')
 
-    # Traverse the tree until at the end of the command or undefined
-    
+        # Create the prompt
+        promptEnd = inputPart.length
+        if index != -1
+            promptEnd = index
+        prompt = {
+            'type': 'TextBlock'
+            'text': "#{inputPart.substring(0, promptEnd)}"
+        }
+        card.content.body.push(prompt)
 
-    # if so, return that card
-    # return null
+        # Create selector
+        if index != -1
+            selector = {
+                "type": "Input.ChoiceSet"
+                "id": query + " - input" + "#{i}"
+                "style": "compact"
+            }
+            choices = []
+            for choice in inputPart.substring(index + 1).split(" or ")
+                choices.push({
+                    'title': choice
+                    'value': choice
+                })
+            selector.choices = choices
+            # Set the default value to the first choice
+            selector.value = choices[0].value
+
+            card.content.body.push(selector)
+        # Create text input
+        else
+            textInput = {
+                'type': 'Input.Text'
+                'id': query + " - input" + "#{i}"
+                'speak': "<s>#{inputPart}</s>"
+                'wrap': true
+                'style': 'text'
+                'maxLength': 1024
+            }
+            card.content.body.push(textInput)
+
+    # Create the submit button
+    data = {
+        'queryPrefix': query
+    }
+    for i in [0 ... queryParts.textParts.length]
+        textPart = queryParts.textParts[i]
+        data[query + " - query" + "#{i}"] = textPart
+
+    card.content.actions = [
+        {
+            'type': 'Action.Submit'
+            'title': 'Submit'
+            'speak': '<s>Submit</s>'
+            'data': data
+        }
+    ]
+    console.log("=====================================")
+    console.log(card)
+    console.log("=====================================")
+
+    return card
+
 
 # Initializes card structure
 initializeAdaptiveCard = (query, text) ->
@@ -41,24 +110,35 @@ initializeAdaptiveCard = (query, text) ->
                     'speak': "<s>#{query}</s>"
                     'weight': 'bolder'
                     'size': 'medium'
-                },
-                {
-                    'type': 'TextBlock'
-                    'text': "#{text}"
-                    'speak': "<s>#{text}</s>"
                 }
             ]
         }
     }
     return card
 
+addTextBlock = (text) ->
+    textBlock = {
+        'type': 'TextBlock'
+        'text': "#{text}"
+        'speak': "<s>#{text}</s>"
+    }
+    return textBlock
+
 # Creates an array of JSON adaptive card actions for the
 # card in construction
 getFollowUpButtons = (query, regex) ->
     actions = []
     for followUpQuery in HubotResponseCards[regex]
+        console.log(followUpQuery)
+
+        # Create a short version of the command by including only the
+        # start of the command to the first user input marked by ( or <
+        shortQueryEnd = followUpQuery.search(new RegExp("[(<]"))
+        if shortQueryEnd == -1
+            shortQueryEnd = followUpQuery.length
+        shortQuery = followUpQuery.substring(0, shortQueryEnd)
         action = {
-            'title': followUpQuery
+            'title': shortQuery
         }
         queryParts = HubotQueryParts[followUpQuery]
 
@@ -66,7 +146,7 @@ getFollowUpButtons = (query, regex) ->
         if queryParts.inputParts is undefined
             action.type = 'Action.Submit'
             action.data = {
-                'followUpQuery': followUpQuery
+                'queryPrefix': followUpQuery
             }
 
             # Add the text parts to the data field of the action
@@ -145,7 +225,7 @@ getFollowUpButtons = (query, regex) ->
 
             # Create the submit button in the sub card
             data = {
-                'followUpQuery': followUpQuery
+                'queryPrefix': followUpQuery
             }
             for i in [0 ... queryParts.textParts.length]
                 textPart = queryParts.textParts[i]
@@ -219,10 +299,22 @@ getFollowUpButtons = (query, regex) ->
 
 # HubotResponseCards maps from regex's of hubot queries to an array of follow up hubot
 # queries stored as strings
-HubotResponseCards = {
+
     # *** Will add list hubot-github/gho commands here
+    # "list (gho|hubot-github) commands":[
+    #     "gho",
+    #     "gho list (teams|repos|members)",
+    #     "gho list public repos",
+    #     "gho create team <team name>",
+    #     "gho create repo <repo name>/<private|public>",
+    #     "gho add (members|repos) <members|repos> to team <team name>",
+    #     "gho remove (repos|members) <members|repos> from team <team name>",
+    #     "gho delete team <team name>"
+    # ]
+HubotResponseCards = {
     "(.+) gho list (teams|repos|members)": [
-        "gho list (teams|repos|members)"
+        "gho list (teams|repos|members)",
+        "gho list public repos"
     ]
     "(.+) gho create team (.+){1,1024}": [
         "gho add (members|repos) <members|repos> to team <team name>",

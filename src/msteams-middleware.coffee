@@ -366,26 +366,26 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     fixActivityForHubot = (activity, robot, chatMembers) ->
         if activity?.value != undefined
             data = activity.value
-            followUpQuery = data.followUpQuery
+            queryPrefix = data.queryPrefix
             console.log("********************")
             console.log(data)
             # Get the first command part. A command always begins with a text part
             # as commands always beging with the word 'hubot'
-            text = data[followUpQuery + " - query0"]
+            text = data[queryPrefix + " - query0"]
             text = text.replace("hubot", robot.name)
             console.log(text)
 
             # If there are inputs, add those and the next query part
             # if there is one
             i = 0
-            input = data[followUpQuery + " - input#{i}"]
+            input = data[queryPrefix + " - input#{i}"]
             while input != undefined
                 text = text + input
-                nextTextPart = data[followUpQuery + " - query" + (i + 1)]
+                nextTextPart = data[queryPrefix + " - query" + (i + 1)]
                 if nextTextPart != undefined
                     text = text + nextTextPart
                 i++
-                input = data[followUpQuery + " - input#{i}"]
+                input = data[queryPrefix + " - input#{i}"]
 
             # for i in [0 ... 1]
             #     text = text + data["input#{i}"]
