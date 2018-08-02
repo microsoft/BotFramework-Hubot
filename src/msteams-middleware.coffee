@@ -84,21 +84,14 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 type: 'message'
                 text: message.trim()
                 address: activity?.address
-            
-            # *** Testing card templates checks
-            # if it matches, will fill it, otherwise,
-            # card = constructHubotResponseCard(activity, response)
 
             # If the query sent by the user should trigger a card,
             # construct the card to attach to the response
             # and remove sentQuery from the brain
-            card = HubotResponseCards.maybeConstructCard(activity, response, activity.text)
-            # console.log("=========================")
-            # console.log(card)
-            # console.log(card is not null)
-            # console.log(card is not undefined)
-            # console.log(card != null)
-            # console.log(card is not undefined)
+            card = HubotResponseCards.maybeConstructCard(response, activity.text)
+            console.log("=============================================")
+            console.log(JSON.stringify(card, null, 2))
+            console.log("=============================================")
             if card != null
                 delete response.text
                 response.attachments = [card]

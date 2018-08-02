@@ -3,7 +3,7 @@
 
 HubotQueryParts = require './hubot-query-parts'
 
-maybeConstructCard = (activity, response, query) ->
+maybeConstructCard = (response, query) ->
     # Check if the response is from a list commands follow up button press.
     # If so, construct the needed input card and return it
     index = query.search("generate input card")
@@ -23,14 +23,10 @@ maybeConstructCard = (activity, response, query) ->
 # Constructs an input card
 constructMenuInputCard = (query, text) ->
     card = initializeAdaptiveCard(query)
-    console.log("************************************************")
-    console.log(text)
     queryParts = HubotQueryParts[text]
-    console.log(queryParts)
+
     # Create the input fields of the sub card
     for i in [0 ... queryParts.inputParts.length]
-        console.log("*********")
-        console.log(queryParts.inputParts.length)
         inputPart = queryParts.inputParts[i]
         index = inputPart.search('/')
 
@@ -45,15 +41,6 @@ constructMenuInputCard = (query, text) ->
             card.content.body.push(addSelector(query, inputPart.substring(index + 1), query + " - input" + "#{i}"))
         # Create text input
         else
-            # textInput = {
-            #     'type': 'Input.Text'
-            #     'id': query + " - input" + "#{i}"
-            #     'speak': "<s>#{inputPart}</s>"
-            #     'wrap': true
-            #     'style': 'text'
-            #     'maxLength': 1024
-            # }
-            # card.content.body.push(textInput)
             card.content.body.push(addTextInput(query + " - input" + "#{i}", inputPart))
 
     # Create the submit button
@@ -72,9 +59,6 @@ constructMenuInputCard = (query, text) ->
             'data': data
         }
     ]
-    console.log("=====================================")
-    console.log(card)
-    console.log("=====================================")
 
     return card
 
@@ -142,7 +126,6 @@ addTextInput = (id, inputPart) ->
 getFollowUpButtons = (query, regex) ->
     actions = []
     for followUpQuery in HubotResponseCards[regex]
-        console.log(followUpQuery)
 
         # Create a short version of the command by including only the
         # start of the command to the first user input marked by ( or <
@@ -155,7 +138,8 @@ getFollowUpButtons = (query, regex) ->
         }
         queryParts = HubotQueryParts[followUpQuery]
 
-        # Doesn't need user input, just run the command
+        # Doesn't need user input, just run the command when the
+        # follow up button is pressed
         if queryParts.inputParts is undefined
             action.type = 'Action.Submit'
             action.data = {
@@ -163,8 +147,6 @@ getFollowUpButtons = (query, regex) ->
             }
 
             # Add the text parts to the data field of the action
-            # *** will change this to just hold array & will change
-            # query constructor code to iterate over the array
             for i in [0 ... queryParts.textParts.length]
                 textPart = queryParts.textParts[i]
                 action.data[followUpQuery + " - query" + "#{i}"] = textPart
@@ -178,8 +160,8 @@ getFollowUpButtons = (query, regex) ->
                 'body': [
                     {
                         'type': 'TextBlock'
-                        'text': "#{followUpQuery}"
-                        'speak': "<s>#{followUpQuery}</s>"
+                        'text': "#{shortQuery}"
+                        'speak': "<s>#{shortQuery}</s>"
                         'weight': 'bolder'
                         'size': 'large'
                     }
@@ -195,48 +177,14 @@ getFollowUpButtons = (query, regex) ->
                 promptEnd = inputPart.length
                 if index != -1
                     promptEnd = index
-                console.log("===========================================")
-                console.log(index)
-                console.log(promptEnd)
-                prompt = {
-                    'type': 'TextBlock'
-                    'text': "#{inputPart.substring(0, promptEnd)}"
-                }
-                action.card.body.push(prompt)
+                action.card.body.push(addTextBlock(inputPart.substring(0, promptEnd)))
 
                 # Create selector
                 if index != -1
-                    # selector = {
-                    #     "type": "Input.ChoiceSet"
-                    #     "id": followUpQuery + " - input" + "#{i}"
-                    #     "style": "compact"
-                    # }
-                    # choices = []
-                    # for choice in inputPart.substring(index + 1).split(" or ")
-                    #     choices.push({
-                    #         'title': choice
-                    #         'value': choice
-                    #     })
-                    # selector.choices = choices
-                    # # Set the default value to the first choice
-                    # selector.value = choices[0].value
-
-                    # action.card.body.push(selector)
                     action.card.body.push(addSelector(followUpQuery, inputPart.substring(index + 1), followUpQuery + " - input" + "#{i}"))
                 # Create text input
                 else
-                    # textInput = {
-                    #     'type': 'Input.Text'
-                    #     'id': followUpQuery + " - input" + "#{i}"
-                    #     'speak': "<s>#{inputPart}</s>"
-                    #     'wrap': true
-                    #     'style': 'text'
-                    #     'maxLength': 1024
-                    # }
-                    # action.card.body.push(textInput)
                     action.card.body.push(addTextInput(followUpQuery + " - input" + "#{i}", inputPart))
-
-
 
             # Create the submit button in the sub card
             data = {
@@ -254,9 +202,6 @@ getFollowUpButtons = (query, regex) ->
                     'data': data
                 }
             ]
-
-            console.log("+++++++++++++++++++++++++++")
-            console.log(action.card.actions[0].data)
 
         # Add the action to actions
         actions.push(action)
