@@ -25,18 +25,20 @@ class BotFrameworkAdapter extends Adapter
         @appId = process.env.BOTBUILDER_APP_ID
         @appPassword = process.env.BOTBUILDER_APP_PASSWORD       
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
+        @enableAuth = process.env.HUBOT_TEAMS_ENABLE_AUTH || 'true'
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
         # Initial Admins should be required
-        if process.env.HUBOT_TEAMS_INITIAL_ADMINS
-            if robot.brain.get("authorizedUsers") is null
-                robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
-                authorizedUsers = {}
-                for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
-                    authorizedUsers[admin] = true
-                robot.brain.set("authorizedUsers", authorizedUsers)
-        else
-            throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required")
+        if @enableAuth == 'true'
+            if process.env.HUBOT_TEAMS_INITIAL_ADMINS
+                if robot.brain.get("authorizedUsers") is null
+                    robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
+                    authorizedUsers = {}
+                    for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
+                        authorizedUsers[admin] = true
+                    robot.brain.set("authorizedUsers", authorizedUsers)
+            else
+                throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required")
 
         @connector  = new BotBuilderTeams.TeamsChatConnector {
             appId: @appId
@@ -63,7 +65,7 @@ class BotFrameworkAdapter extends Adapter
         # AAD Object Id or if the user is unauthorized
         authorizedUsers = @robot.brain.get("authorizedUsers")
         aadObjectId = activity?.address?.user?.aadObjectId
-        if aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined
+        if @enableAuth == 'true' and (aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined)
            @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
            return null
 

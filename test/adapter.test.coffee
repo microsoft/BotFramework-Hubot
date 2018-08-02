@@ -5,16 +5,45 @@ BotFrameworkAdapter = require '../src/adapter'
 
 describe 'Main Adapter', ->
     describe 'Test Auth', ->
-        robot = null
         beforeEach ->
             process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,eight888-four-4444-fore-twelve121212'
             process.env.BOTBUILDER_APP_ID = 'botbuilder-app-id'
             process.env.BOTBUILDER_APP_PASSWORD = 'botbuilder-app-password'
-            process.env.HUBOT_DEBUG_LEVEL= 'error'
+            process.env.HUBOT_DEBUG_LEVEL = 'error'
+            process.env.HUBOT_TEAMS_ENABLE_AUTH = 'true'
+
+        it 'should not set initial admins when auth is not enabled', ->
+            # Setup
+            process.env.HUBOT_TEAMS_ENABLE_AUTH = 'false'
             robot = new Robot('../../hubot-botframework', 'botframework', false, 'hubot')
 
-        it 'should set initial admins when robot is created', ->
+            # Action
+            expect(() ->
+                adapter = BotFrameworkAdapter.use(robot)
+            ).to.not.throw()
+
+            # Assert
+            expect(robot.brain.get("authorizedUsers")).to.be.null
+
+        it 'should set initial admins when auth is enabled', ->
             # Setup
+            robot = new Robot('../../hubot-botframework', 'botframework', false, 'hubot')
+
+            # Action
+            expect(() ->
+                adapter = BotFrameworkAdapter.use(robot)
+            ).to.not.throw()
+
+            # Assert
+            expect(robot.brain.get("authorizedUsers")).to.eql {
+                'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee': true
+                'eight888-four-4444-fore-twelve121212': true
+            }
+        
+        it 'should set initial admins when auth enable is not set', ->
+            # Setup
+            delete process.env.HUBOT_TEAMS_ENABLE_AUTH
+            robot = new Robot('../../hubot-botframework', 'botframework', false, 'hubot')
 
             # Action
             expect(() ->
@@ -29,6 +58,7 @@ describe 'Main Adapter', ->
     
         it 'should allow messages from authorized users', ->
             # Setup
+            robot = new Robot('../../hubot-botframework', 'botframework', false, 'hubot')
             adapter = BotFrameworkAdapter.use(robot)
             adapter.connector.fetchMembers = (serviceUrl, teamId, callback) ->
                 members = [
@@ -99,6 +129,7 @@ describe 'Main Adapter', ->
 
         it 'should block messages from unauthorized users', ->
             # Setup
+            robot = new Robot('../../hubot-botframework', 'botframework', false, 'hubot')
             adapter = BotFrameworkAdapter.use(robot)
             adapter.connector.fetchMembers = (serviceUrl, teamId, callback) ->
                 members = [

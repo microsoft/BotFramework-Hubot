@@ -89,9 +89,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             # construct the card to attach to the response
             # and remove sentQuery from the brain
             card = HubotResponseCards.maybeConstructCard(response, activity.text)
-            console.log("=============================================")
-            console.log(JSON.stringify(card, null, 2))
-            console.log("=============================================")
             if card != null
                 delete response.text
                 response.attachments = [card]

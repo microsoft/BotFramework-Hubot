@@ -522,6 +522,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             expect(sendable).to.deep.equal(expected)
         
+        # *** Change this test when adaptive cards change is made
         it 'should construct card for command list', ->
             # Setup
             message = "MS Teams Command list card"
