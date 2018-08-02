@@ -8,7 +8,7 @@ maybeConstructCard = (activity, response, query) ->
     # If so, construct the needed input card and return it
     index = query.search("generate input card")
     if (index != -1)
-        return constructInputCard(query.substring(0, index), response.text)
+        return constructMenuInputCard(query.replace("generate input card", ""), response.text)
 
     # Check if response.text matches one of the reg exps in the LUT
     for regex of HubotResponseCards
@@ -21,8 +21,9 @@ maybeConstructCard = (activity, response, query) ->
     return null
 
 # Constructs an input card
-constructInputCard = (query, text) ->
+constructMenuInputCard = (query, text) ->
     card = initializeAdaptiveCard(query)
+    console.log("************************************************")
     console.log(text)
     queryParts = HubotQueryParts[text]
     console.log(queryParts)
@@ -37,41 +38,23 @@ constructInputCard = (query, text) ->
         promptEnd = inputPart.length
         if index != -1
             promptEnd = index
-        prompt = {
-            'type': 'TextBlock'
-            'text': "#{inputPart.substring(0, promptEnd)}"
-        }
-        card.content.body.push(prompt)
+        card.content.body.push(addTextBlock("#{inputPart.substring(0, promptEnd)}"))
 
         # Create selector
         if index != -1
-            selector = {
-                "type": "Input.ChoiceSet"
-                "id": query + " - input" + "#{i}"
-                "style": "compact"
-            }
-            choices = []
-            for choice in inputPart.substring(index + 1).split(" or ")
-                choices.push({
-                    'title': choice
-                    'value': choice
-                })
-            selector.choices = choices
-            # Set the default value to the first choice
-            selector.value = choices[0].value
-
-            card.content.body.push(selector)
+            card.content.body.push(addSelector(query, inputPart.substring(index + 1), query + " - input" + "#{i}"))
         # Create text input
         else
-            textInput = {
-                'type': 'Input.Text'
-                'id': query + " - input" + "#{i}"
-                'speak': "<s>#{inputPart}</s>"
-                'wrap': true
-                'style': 'text'
-                'maxLength': 1024
-            }
-            card.content.body.push(textInput)
+            # textInput = {
+            #     'type': 'Input.Text'
+            #     'id': query + " - input" + "#{i}"
+            #     'speak': "<s>#{inputPart}</s>"
+            #     'wrap': true
+            #     'style': 'text'
+            #     'maxLength': 1024
+            # }
+            # card.content.body.push(textInput)
+            card.content.body.push(addTextInput(query + " - input" + "#{i}", inputPart))
 
     # Create the submit button
     data = {
@@ -123,6 +106,36 @@ addTextBlock = (text) ->
         'speak': "<s>#{text}</s>"
     }
     return textBlock
+
+# Parses the query to extract
+addSelector = (queryPrefix, choicesText, id) ->
+    selector = {
+        "type": "Input.ChoiceSet"
+        "id": id
+        "style": "compact"
+    }
+    choices = []
+    for choice in choicesText.split(" or ")
+        choices.push({
+            'title': choice
+            'value': choice
+        })
+    selector.choices = choices
+    # Set the default value to the first choice
+    selector.value = choices[0].value
+
+    return selector
+
+addTextInput = (id, inputPart) ->
+    textInput = {
+        'type': 'Input.Text'
+        'id': id
+        'speak': "<s>#{inputPart}</s>"
+        'wrap': true
+        'style': 'text'
+        'maxLength': 1024
+    }
+    return textInput
 
 # Creates an array of JSON adaptive card actions for the
 # card in construction
@@ -193,33 +206,35 @@ getFollowUpButtons = (query, regex) ->
 
                 # Create selector
                 if index != -1
-                    selector = {
-                        "type": "Input.ChoiceSet"
-                        "id": followUpQuery + " - input" + "#{i}"
-                        "style": "compact"
-                    }
-                    choices = []
-                    for choice in inputPart.substring(index + 1).split(" or ")
-                        choices.push({
-                            'title': choice
-                            'value': choice
-                        })
-                    selector.choices = choices
-                    # Set the default value to the first choice
-                    selector.value = choices[0].value
+                    # selector = {
+                    #     "type": "Input.ChoiceSet"
+                    #     "id": followUpQuery + " - input" + "#{i}"
+                    #     "style": "compact"
+                    # }
+                    # choices = []
+                    # for choice in inputPart.substring(index + 1).split(" or ")
+                    #     choices.push({
+                    #         'title': choice
+                    #         'value': choice
+                    #     })
+                    # selector.choices = choices
+                    # # Set the default value to the first choice
+                    # selector.value = choices[0].value
 
-                    action.card.body.push(selector)
+                    # action.card.body.push(selector)
+                    action.card.body.push(addSelector(followUpQuery, inputPart.substring(index + 1), followUpQuery + " - input" + "#{i}"))
                 # Create text input
                 else
-                    textInput = {
-                        'type': 'Input.Text'
-                        'id': followUpQuery + " - input" + "#{i}"
-                        'speak': "<s>#{inputPart}</s>"
-                        'wrap': true
-                        'style': 'text'
-                        'maxLength': 1024
-                    }
-                    action.card.body.push(textInput)
+                    # textInput = {
+                    #     'type': 'Input.Text'
+                    #     'id': followUpQuery + " - input" + "#{i}"
+                    #     'speak': "<s>#{inputPart}</s>"
+                    #     'wrap': true
+                    #     'style': 'text'
+                    #     'maxLength': 1024
+                    # }
+                    # action.card.body.push(textInput)
+                    action.card.body.push(addTextInput(followUpQuery + " - input" + "#{i}", inputPart))
 
 
 
