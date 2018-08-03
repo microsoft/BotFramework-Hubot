@@ -46,18 +46,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         if @allowedTenants.length > 0 && !@allowedTenants.includes(getTenantId(activity))
             @robot.logger.info "#{LogPrefix} Unauthorized tenant; ignoring activity"
             return null
-        
-        # console.log("Checking booleans:----------------------------")
-        # console.log(@robot.brain.get("admins"))
-
-        # # Drop the activity if this user isn't authorized to send commands
-        # # Ignores unauthorized commands for now, may change to display error message
-        # authorizedUsers = @robot.brain.get("authorizedUsers")
-
-        # if authorizedUsers[getUserAadObjectId(activity)] is undefined
-        #    @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
-        #    return null
-
 
         # Get the user
         user = getUser(activity)
@@ -376,11 +364,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                     text = text + nextTextPart
                 i++
                 input = data[queryPrefix + " - input#{i}"]
-
-            # for i in [0 ... 1]
-            #     text = text + data["input#{i}"]
-            #     if data["query" + (i + 1)]
-            #         text = text + data["query" + (i + 1)]
             console.log(text)
 
             activity.text = text
@@ -401,9 +384,10 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             replacement = mention.mentioned.name
             if mention.mentioned.id == myChatId
                 replacement = robot.name
-            for member in chatMembers
-                if mention.mentioned.id == member.id
-                    replacement = member.objectId
+            if chatMembers != undefined
+                for member in chatMembers
+                    if mention.mentioned.id == member.id
+                        replacement = member.objectId
             activity.text = activity.text.replace(mentionTextRegExp, replacement)
 
         # prepends the robot's name for direct messages

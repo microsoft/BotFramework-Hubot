@@ -28,7 +28,7 @@ class BotFrameworkAdapter extends Adapter
         @enableAuth = process.env.HUBOT_TEAMS_ENABLE_AUTH || 'true'
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
-        # Initial Admins should be required
+        # Initial Admins should be required when auth is enabled or not set
         if @enableAuth == 'true'
             if process.env.HUBOT_TEAMS_INITIAL_ADMINS
                 if robot.brain.get("authorizedUsers") is null
@@ -66,23 +66,37 @@ class BotFrameworkAdapter extends Adapter
         authorizedUsers = @robot.brain.get("authorizedUsers")
         aadObjectId = activity?.address?.user?.aadObjectId
         if @enableAuth == 'true' and (aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined)
-           @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
-           return null
+            @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
+            activity.text = "hubot return unauthorized user error"
+           # *** Experimenting with sending an error response instead of dropping the activity
+           #return null
 
-        @connector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, result) =>
-            if err
-                return
-
-            # *** Could change the next line to only use the Teams adapter
-            #event = @using(activity.source).toReceivable(activity, result)
-            msTeamsMiddleware = new MicrosoftTeamsMiddleware(@robot)
-            event = msTeamsMiddleware.toReceivable(activity, result)
+        if (activity.source != "msteams")
+            event = @using(activity.source).toReceivable(activity)
 
             if event?
-                console.log("Hubot event:")
+                console.log("Hubot event, not callback:")
                 console.log(event)
 
                 @robot.receive event
+        else
+            @connector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, result) =>
+                if err
+                    return
+
+                # if result is undefined
+                #     result = null
+
+                # *** Could change the next line to only use the Teams adapter
+                # event = @using(activity.source).toReceivable(activity, result)
+                msTeamsMiddleware = new MicrosoftTeamsMiddleware(@robot)
+                event = msTeamsMiddleware.toReceivable(activity, result)
+
+                if event?
+                    console.log("Hubot event:")
+                    console.log(event)
+
+                    @robot.receive event
 
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"
