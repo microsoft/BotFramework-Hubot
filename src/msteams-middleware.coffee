@@ -256,8 +256,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             activity.text = activity.text.replace(mentionTextRegExp, replacement)
 
         # prepends the robot's name for direct messages
-        roomId = getRoomId(activity)
-        #if roomId? and not roomId.startsWith("19:") and not activity.text.startsWith(robot.name)
         if not activity.text.startsWith(robot.name)
             activity.text = "#{robot.name} #{activity.text}"
 
