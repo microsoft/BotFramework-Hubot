@@ -24,7 +24,7 @@ class BotFrameworkAdapter extends Adapter
         @appId = process.env.BOTBUILDER_APP_ID
         @appPassword = process.env.BOTBUILDER_APP_PASSWORD       
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
-        @enableAuth = process.env.HUBOT_TEAMS_ENABLE_AUTH || 'true'
+        @enableAuth = process.env.HUBOT_TEAMS_ENABLE_AUTH || 'false'
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
         # Initial Admins should be required when auth is enabled or not set
@@ -37,7 +37,7 @@ class BotFrameworkAdapter extends Adapter
                         authorizedUsers[admin] = true
                     robot.brain.set("authorizedUsers", authorizedUsers)
             else
-                throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required")
+                throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required for authorization")
 
         @connector  = new BotBuilder.ChatConnector {
             appId: @appId
@@ -70,27 +70,33 @@ class BotFrameworkAdapter extends Adapter
         console.log("The activity parameter:")
         console.log(JSON.stringify(activity, null, 2))
 
+        # Construct the middleware
+        middleware = @using(activity.source)
+
         # Drop the activity if the user cannot be authenticated with their
         # AAD Object Id or if the user is unauthorized
         authorizedUsers = @robot.brain.get("authorizedUsers")
         aadObjectId = activity?.address?.user?.aadObjectId
-        if @enableAuth == 'true' and (aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined)
-            @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
-            activity.text = "hubot return unauthorized user error"
-           # *** Experimenting with sending an error response instead of dropping the activity
-           #return null
+        if @enableAuth == 'true'
+            if middleware.supportsAuth()
+                if aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined
+                    @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
+                    activity.text = "hubot return unauthorized user error"
+            else
+                @robot.logger.info "#{LogPrefix} Message source doesn't support authorization"
+                activity.text = "hubot return source authorization not supported error"
 
-        if (activity.source != "msteams")
-            event = @using(activity.source).toReceivable(activity)
-
+        # If authorization isn't supported by the activity source, use
+        # the text middleware
+        if not middleware.supportsAuth()
+            event = middleware.toReceivable activity
             if event?
                 console.log("Hubot event, not callback:")
                 console.log(event)
 
                 @robot.receive event
         else
-            msTeamsMiddleware = new MicrosoftTeamsMiddleware(@robot)
-            msTeamsMiddleware.toReceivable activity, (event) =>
+            middleware.toReceivable activity, (event) =>
                 console.log("AFTER TO RECEIVABLE")
                 console.log(event)
                 if event?

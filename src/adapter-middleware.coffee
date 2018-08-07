@@ -42,6 +42,10 @@ class TextMiddleware extends BaseMiddleware
             }
         
         return message
+    
+    # Indicates that the authorization isn't supported for this middleware
+    supportsAuth: () ->
+        return false
 
 Middleware = {
     '*': TextMiddleware

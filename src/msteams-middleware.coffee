@@ -140,6 +140,10 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
           address: activity?.address
 
         return [typingMessage, response]
+    
+    # Indicates that the authorization is supported for this middleware (Teams)
+    supportsAuth: () ->
+        return true
 
     #############################################################################
     # Helper methods for generating richer messages
