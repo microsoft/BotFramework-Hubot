@@ -47,6 +47,16 @@ class BotFrameworkAdapter extends Adapter
 
         @connector.onEvent (events, cb) => @onBotEvents events, cb
 
+        @connector.onInvoke (events, cb) => @sendTextToHubot events, cb
+
+    sendTextToHubot: (invokeEvent, cb) ->
+        console.log("In the invoke handler")
+        invokeEvent.text = invokeEvent.value.hubotMessage
+        delete invokeEvent.value
+        console.log(invokeEvent)
+        @handleActivity(invokeEvent)
+
+
     using: (name) ->
         MiddlewareClass = Middleware.middlewareFor(name)
         new MiddlewareClass(@robot)

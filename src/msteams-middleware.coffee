@@ -55,7 +55,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         user.activity = activity
         user.room = getRoomId(activity)
 
-        if activity.type == 'message'
+        # *** added invoke to accepted types
+        if activity.type == 'message' || activity.type == 'invoke'
             activity = fixActivityForHubot(activity, @robot, chatMembers)
             message = new TextMessage(user, activity.text, activity.address.id)
             return message
@@ -369,12 +370,18 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             activity.text = text
             return activity
 
+        console.log("Past activity.value check")
+        console.log(activity.text)
+        console.log(typeof activity.text)
+
         if not activity?.text? || typeof activity.text isnt 'string'
             return activity
         myChatId = activity?.address?.bot?.id
         if not myChatId?
             return activity
 
+        console.log("Reached the acting on the activity.text part")
+        console.log(activity.text)
         # Replace all @ mentions to the bot with the bot's name, and replace
         # all @ mentions of users with a known aad object id with their aad
         # object id.
@@ -392,7 +399,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
         # prepends the robot's name for direct messages
         roomId = getRoomId(activity)
-        if roomId? and not roomId.startsWith("19:") and not activity.text.startsWith(robot.name)
+        #if roomId? and not roomId.startsWith("19:") and not activity.text.startsWith(robot.name)
+        if not activity.text.startsWith(robot.name)
             activity.text = "#{robot.name} #{activity.text}"
 
         # Remove the newline character at the beginning or end of the text,
