@@ -12,7 +12,6 @@ Util = require 'util'
 Timers = require 'timers'
 
 BotBuilder = require 'botbuilder'
-BotBuilderTeams = require 'botbuilder-teams'
 { Robot, Adapter, TextMessage, User } = require 'hubot'
 Middleware = require './adapter-middleware'
 MicrosoftTeamsMiddleware = require './msteams-middleware'
@@ -40,7 +39,7 @@ class BotFrameworkAdapter extends Adapter
             else
                 throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required")
 
-        @connector  = new BotBuilderTeams.TeamsChatConnector {
+        @connector  = new BotBuilder.ChatConnector {
             appId: @appId
             appPassword: @appPassword
         }
@@ -90,18 +89,10 @@ class BotFrameworkAdapter extends Adapter
 
                 @robot.receive event
         else
-            @connector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, result) =>
-                if err
-                    return
-
-                # if result is undefined
-                #     result = null
-
-                # *** Could change the next line to only use the Teams adapter
-                # event = @using(activity.source).toReceivable(activity, result)
-                msTeamsMiddleware = new MicrosoftTeamsMiddleware(@robot)
-                event = msTeamsMiddleware.toReceivable(activity, result)
-
+            msTeamsMiddleware = new MicrosoftTeamsMiddleware(@robot)
+            msTeamsMiddleware.toReceivable activity, (event) =>
+                console.log("AFTER TO RECEIVABLE")
+                console.log(event)
                 if event?
                     console.log("Hubot event:")
                     console.log(event)

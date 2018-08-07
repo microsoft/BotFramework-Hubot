@@ -23,8 +23,8 @@
 #
 
 BotBuilder = require 'botbuilder'
+BotBuilderTeams = require 'botbuilder-teams'
 HubotResponseCards = require './hubot-response-cards'
-#BotBuilderTeams = require 'botbuilder-teams'
 #MicrosoftGraph = require '@microsoft/microsoft-graph-client'
 { Robot, TextMessage, Message, User } = require 'hubot'
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
@@ -39,7 +39,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             @allowedTenants = process.env.HUBOT_OFFICE365_TENANT_FILTER.split(",")
             @robot.logger.info("#{LogPrefix} Restricting tenants to #{JSON.stringify(@allowedTenants)}")
 
-    toReceivable: (activity, chatMembers) ->
+    toReceivable: (activity, cb) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
         # Drop the activity if it came from an unauthorized tenant
@@ -55,12 +55,22 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         user.activity = activity
         user.room = getRoomId(activity)
 
-        # *** added invoke to accepted types
-        if activity.type == 'message' || activity.type == 'invoke'
-            activity = fixActivityForHubot(activity, @robot, chatMembers)
-            message = new TextMessage(user, activity.text, activity.address.id)
-            return message
-        return new Message(user)
+        if activity.type != 'message' && activity.type != 'invoke'
+            return new Message(user)
+        else
+            # Try to get chat members first then construct the message to send to hubot
+            teamsConnector = new BotBuilderTeams.TeamsChatConnector {
+                appId: @robot.adapter.appId
+                appPassword: @robot.adapter.appPassword
+            }
+            teamsConnector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, result) =>
+                if err
+                    console.log("THERE WAS AN ERROR")
+                    return
+
+                activity = fixActivityForHubot(activity, @robot, result)
+                message = new TextMessage(user, activity.text, activity.address.id)
+                cb(message)
 
     toSendable: (context, message) ->
         @robot.logger.info "#{LogPrefix} toSendable"
@@ -83,35 +93,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 response.attachments = [card]
 
             imageAttachment = convertToImageAttachment(message)
-            # Create a card with buttons for each
-            if response.text == "MS Teams Command list card"
-                heroCard = new BotBuilder.HeroCard()
-                heroCard.title('Hubot commands')
-                buttons = []
-                text = ""
-                for command in @robot.commands
-                    if text == ""
-                        text = command
-                    else
-                        text = "#{text}\n#{command}"
-                    parts = command.split(" - ")
-                    commandKeywords = parts[0].replace("hubot ", "")
-                    console.log(commandKeywords)
 
-                    button = new BotBuilder.CardAction.imBack()
-                    #button.title(command)
-                    button.title(escapeLessThan(commandKeywords))
-                    button.value(commandKeywords)
-                    buttons.push button
-                heroCard.buttons(buttons)
-                text = escapeLessThan(text)
-                text = escapeNewLines(text)
-                heroCard.text(text)
-
-                delete response.text
-                response.attachments = [heroCard.toAttachment()]
-
-            else if response.text == "List the admins"
+            if response.text == "List the admins"
                 heroCard = new BotBuilder.HeroCard()
                 heroCard.title('Teams Admins')
                 
@@ -145,126 +128,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 
                 delete response.text
                 response.attachments = [heroCard.toAttachment()]
-
-            else if response.text == "dragons"
-                card = {
-                    'contentType': 'application/vnd.microsoft.card.adaptive',
-                    'content': {
-                        '$schema': 'http://adaptivecards.io/schemas/adaptive-card.json',
-                        'type': 'AdaptiveCard',
-                        'version': '1.0',
-                        'body': [
-                            {
-                                'type': 'Container',
-                                'speak': '<s>Hello!</s><s>Are you looking for a flight or a hotel?</s>',
-                                'items': [
-                                    {
-                                        'type': 'ColumnSet',
-                                        'columns': [
-                                            {
-                                                'type': 'Column',
-                                                'size': 'stretch',
-                                                'items': [
-                                                    {
-                                                        'type': 'TextBlock',
-                                                        'text': 'Hello!',
-                                                        'weight': 'bolder',
-                                                        'isSubtle': true
-                                                    },
-                                                    {
-                                                        'type': 'TextBlock',
-                                                        'text': 'Are you looking for a flight or a hotel?',
-                                                        'wrap': true
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
-                        ],
-                        'actions': [
-                        # Hotels Search form
-                            {
-                                'type': 'Action.ShowCard',
-                                'title': 'Hotels',
-                                'speak': '<s>Hotels</s>',
-                                'card': {
-                                    'type': 'AdaptiveCard',
-                                    'body': [
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'Welcome to the Hotels finder!',
-                                            'speak': '<s>Welcome to the Hotels finder!</s>',
-                                            'weight': 'bolder',
-                                            'size': 'large'
-                                        },
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'Please enter your destination:'
-                                        },
-                                        {
-                                            'type': 'Input.Text',
-                                            'id': 'destination',
-                                            'speak': '<s>Please enter your destination</s>',
-                                            'placeholder': 'Miami, Florida',
-                                            'style': 'text'
-                                        },
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'When do you want to check in?'
-                                        },
-                                        {
-                                            'type': 'Input.Date',
-                                            'id': 'checkin',
-                                            'speak': '<s>When do you want to check in?</s>'
-                                        },
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'How many nights do you want to stay?'
-                                        },
-                                        {
-                                            'type': 'Input.Number',
-                                            'id': 'nights',
-                                            'min': 1,
-                                            'max': 60,
-                                            'speak': '<s>How many nights do you want to stay?</s>'
-                                        }
-                                    ],
-                                    'actions': [
-                                        {
-                                            'type': 'Action.Submit',
-                                            'title': 'Search',
-                                            'speak': '<s>Search</s>',
-                                            'data': {
-                                                'text': "#{response.text}",
-                                                'type': 'hotelSearch'
-                                            }
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                'type': 'Action.ShowCard',
-                                'title': 'Flights',
-                                'speak': '<s>Flights</s>',
-                                'card': {
-                                    'type': 'AdaptiveCard',
-                                    'body': [
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'Flights is not implemented =(',
-                                            'speak': '<s>Flights is not implemented</s>',
-                                            'weight': 'bolder'
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                }
-                delete response.text
-                response.attachments = [card]
             
             else if imageAttachment?
                 delete response.text
@@ -365,14 +228,11 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                     text = text + nextTextPart
                 i++
                 input = data[queryPrefix + " - input#{i}"]
+            console.log("CONSTRUCTING HUBOT TEXT QUERY")
             console.log(text)
 
             activity.text = text
             return activity
-
-        console.log("Past activity.value check")
-        console.log(activity.text)
-        console.log(typeof activity.text)
 
         if not activity?.text? || typeof activity.text isnt 'string'
             return activity
@@ -380,8 +240,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         if not myChatId?
             return activity
 
-        console.log("Reached the acting on the activity.text part")
-        console.log(activity.text)
         # Replace all @ mentions to the bot with the bot's name, and replace
         # all @ mentions of users with a known aad object id with their aad
         # object id.
@@ -469,7 +327,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # On call, we know that response.text is text
     constructHubotResponseCard = (activity) ->
         # Check if response.text matches any of the query templates
-
 
 registerMiddleware 'msteams', MicrosoftTeamsMiddleware
 
