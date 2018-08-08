@@ -109,21 +109,145 @@ class BotFrameworkAdapter extends Adapter
         @robot.logger.info "#{LogPrefix} send"
         @reply context, messages...
 
+    sendPayload: (robot) ->
+        console.log("IN SEND PAYLOAD")
+        payload = robot.brain.get("teamsResponse")
+        if !Array.isArray(payload)
+            payload = [payload]
+        console.log("printing payload for reply: --------------------")
+        console.log(JSON.stringify(payload, null, 2))
+        robot.adapter.connector.send payload, (err, _) ->
+            if err
+                console.log("THIS IS WHERE ITS THROWING THE ERROR")
+                throw err
+            robot.brain.remove("teamsResponse")
+            robot.brain.remove("justReceivedResponse")
+
     reply: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} reply"
+        console.log("============================================================")
+        console.log(@robot.brain.get("teamsResponse"))
+        console.log(@robot.brain.get("justReceivedResponse"))
+
         for msg in messages
             activity = context.user.activity
             payload = @using(activity.source).toSendable(context, msg)
 
-            if !Array.isArray(payload)
-                payload = [payload]
+            # Only gather responses and send them together if the message is from the
+            # Teams channel
+            if activity.source != 'msteams'
+                if !Array.isArray(payload)
+                    payload = [payload]
+                
+                console.log("printing payload for reply: --------------------")
+                console.log(JSON.stringify(payload, null, 2))
+                @connector.send payload, (err, _) ->
+                    if err
+                        console.log("THIS IS WHERE ITS THROWING THE ERROR")
+                        console.log(err.name)
+                        console.log(err.message)
+                        throw err
+                return
+                
+
+            # If a certain period of time hasn't passed since receiving the first message,
+            # combine the message payload texts and attachments
+            console.log(@robot.brain.get("justReceivedResponse") is null)
+            console.log(@robot.brain.get("justReceivedResponse") == null)
+            if @robot.brain.get("justReceivedResponse") is null
+                console.log("++++++++++++++++++++++++++++++++++++++++++")
+                @robot.brain.set("teamsResponse", payload)
+                setTimeout(this.sendPayload, 500, @robot)
+                console.log("After set timeout")
+                @robot.brain.set("justReceivedResponse", true)
+            else
+                console.log("--------------------------------------------")
+                storedPayload = @robot.brain.get("teamsResponse")
+                # If the stored payload is an array with typing and the message,
+                if Array.isArray(storedPayload) and storedPayload.length == 2
+                    console.log("HEEEEEEEEEEEEEEEEEERE")
+                    storedMessage = storedPayload[1]
+                    # If the just received payload is an array with typing and the message,
+                    if Array.isArray(payload) and payload.length == 2
+                        console.log("HEEEEEEEEEEEEEEEEEERE")
+                        newMessage = payload[1]
+                        # Combine the payload text, if needed, separated by a break
+                        if newMessage.text != undefined
+                            if storedMessage.text != undefined
+                                storedMessage.text = "#{storedMessage.text}<br/>#{newMessage.text}"
+                            else
+                                storedMessage.text = payload.text
+
+                        # Combine the payload attachments, if any
+                        if newMessage.attachments != undefined
+                            console.log("HEEEEEEEEEEEEEEEEEERE")
+                            storedMessageAdaptiveCard = null
+                            # Find the adaptive card, if there is one, in newMessage's
+                            # attachments
+                            if storedMessage.attachments == undefined
+                                storedMessage.attachments = []
+                            else
+                                for storedAttachment in storedMessage.attachments
+                                    if storedAttachment.contentType = "application/vnd.microsoft.card.adaptive"
+                                        storedMessageAdaptiveCard = storedAttachment
+                            console.log(storedMessageAdaptiveCard)
+
+                            for attachment in newMessage.attachments
+                                # If it's not an adaptive card, just append it
+                                if attachment.contentType != "application/vnd.microsoft.card.adaptive"
+                                    storedMessage.attachments.push(attachment)
+                                else
+                                    # If the storedMessage doesn't contain a card, just append it
+                                    if storedMessageAdaptiveCard == null
+                                        storedMessage.attachments.push(attachment)
+                                        storedMessageAdaptiveCard = attachment
+                                    # Otherwise, combine the cards
+                                    else
+                                        # Combine the bodies
+                                        if storedMessageAdaptiveCard.content.body is undefined
+                                            storedMessageAdaptiveCard.content.body = attachment.content.body
+                                        else
+                                            for newBlock in attachment.content.body
+                                                hasBlock = false
+                                                for storedBlock in storedMessageAdaptiveCard.content.body
+                                                    if JSON.stringify(storedBlock) == JSON.stringify(newBlock)
+                                                        hasBlock = true
+                                                        break
+
+                                                if not hasBlock
+                                                    storedMessageAdaptiveCard.content.body.push(newBlock)
+
+                                        # Combine the actions
+                                        if storedMessageAdaptiveCard.content.actions is undefined
+                                            storedMessageAdaptiveCard.content.actions = card2.content.actions
+                                        else
+                                            for newAction in attachment.content.actions
+                                                hasAction = false
+                                                for storedAction in storedMessageAdaptiveCard.content.actions
+                                                    if JSON.stringify(storedAction) == JSON.stringify(newAction)
+                                                        hasAction = true
+                                                        break
+
+                                                # if not in storedActions, add it
+                                                if not hasAction
+                                                    storedMessageAdaptiveCard.content.actions.push(newAction)
+                            console.log(storedMessageAdaptiveCard)
+
+                            # for attachment in newMessage.attachments
+                            #     storedMessage.attachments.push(attachment)
+
+
+            # if !Array.isArray(payload)
+            #     payload = [payload]
             
-            console.log("printing payload for reply: --------------------")
-            console.log(JSON.stringify(payload, null, 2))
-            @connector.send payload, (err, _) ->
-                if err
-                    console.log("THIS IS WHERE ITS THROWING THE ERROR")
-                    throw err
+            # console.log("printing payload for reply: --------------------")
+            # console.log(JSON.stringify(payload, null, 2))
+            # @connector.send payload, (err, _) ->
+            #     if err
+            #         console.log("THIS IS WHERE ITS THROWING THE ERROR")
+            #         console.log(err.name)
+            #         console.log(err.message)
+            #         throw err
 
     run: ->
         @robot.router.post @endpoint, @connector.listen()

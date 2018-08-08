@@ -138,6 +138,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         typingMessage =
           type: "typing"
           address: activity?.address
+        
+        # Check if there is a stored response
 
         return [typingMessage, response]
     

@@ -208,69 +208,54 @@ getFollowUpButtons = (query, regex) ->
 
     return actions
 
+# Appends the card body of card2 to card1 and returns card1
+appendCardBody = (card1, card2) ->
+    for block in card2.content.body
+        console.log("AAAAAAAAAAAAAAAAAAAAAAA")
+        console.log(card1.content.body is undefined)
+        console.log(card1.content.body is null)
+        console.log(card1.content.body == undefined)
+        console.log(card1.content.body == null)
+        if card1.content.body is undefined
+            card1.content.body = [block]
+        else
+            card1.content.body.push(block)
+    return card1
 
-# v1: An object mapping regex strings to an array of follow up buttons
-# HubotResponseCards = {
-#     "(.+) gho create team (.+){1,257}": [
-#         {
-#             'type': 'Action.Submit'
-#             'title': 'Add to team'
-#             'data': {
-#                 'query0': 'hubot gho add to team'
-#                 'numInputs': 0
-#             }
-#         },
-#         {
-#             'type': 'Action.Submit'
-#             'title': 'Delete a team'
-#             'data': {
-#                 'query0': 'hubot gho delete what team'
-#                 'numInputs': 0
-#             }
-#         }
-#     ]
-#     "(.+) gho list (.+){1,257}": [
-#         {
-#             'type': 'Action.Submit'
-#             'title': 'List teams'
-#             'data': {
-#                 'query0': 'hubot gho list teams'
-#                 'numInputs': 0
-#             }
-#         },
-#         {
-#             'type': 'Action.Submit'
-#             'title': 'List repos'
-#             'data': {
-#                 'query0': 'hubot gho list repos'
-#                 'numInputs': 0
-#             }
-#         },
-#         {
-#             'type': 'Action.Submit'
-#             'title': 'List members'
-#             'data': {
-#                 'query0': 'hubot gho list members'
-#                 'numInputs': 0
-#             }
-#         }
-#     ]
-# }
+# Appends the card actions of card2 to those of card1, skipping
+# actions which card1 already contains
+appendCardActions = (card1, card2) ->
+    if card1.content.actions is undefined
+        card1.content.actions = card2.content.actions
+        return card1
+
+    for newAction in card2.content.actions
+        hasAction = false
+        for storedAction in card1.content.actions
+            if JSON.stringify(storedAction) == JSON.stringify(newAction)
+                hasAction = false
+                break
+
+        # if not in storedActions, add it
+        if not hasAction
+            card1.content.actions.push(newAction)
+
+    return card1
 
 # HubotResponseCards maps from regex's of hubot queries to an array of follow up hubot
 # queries stored as strings
 
     # *** Will add list hubot-github/gho commands here
-    "list (gho|hubot-github) commands":[
-        "gho",
-        "gho list (teams|repos|members)",
-        "gho list public repos",
-        "gho create team <team name>",
-        "gho create repo <repo name>/<private|public>",
-        "gho add (members|repos) <members|repos> to team <team name>",
-        "gho remove (repos|members) <members|repos> from team <team name>",
-        "gho delete team <team name>"
-    ]
+    # "list (gho|hubot-github) commands":[
+    #     "gho",
+    #     "gho list (teams|repos|members)",
+    #     "gho list public repos",
+    #     "gho create team <team name>",
+    #     "gho create repo <repo name>/<private|public>",
+    #     "gho add (members|repos) <members|repos> to team <team name>",
+    #     "gho remove (repos|members) <members|repos> from team <team name>",
+    #     "gho delete team <team name>"
+    # ]
 HubotResponseCards = {
     "list (gho|hubot-github) commands":[
         "gho",
@@ -308,5 +293,7 @@ HubotResponseCards = {
 }  
 
 module.exports = {
-    maybeConstructCard
+    maybeConstructCard,
+    appendCardBody,
+    appendCardActions
 }
