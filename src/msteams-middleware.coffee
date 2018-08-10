@@ -30,6 +30,10 @@ HubotResponseCards = require './hubot-response-cards'
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
 LogPrefix = "hubot-msteams:"
 
+#########################
+# Flags for testing
+MOCK_FETCH_MEMBERS = true
+
 class MicrosoftTeamsMiddleware extends BaseMiddleware
     constructor: (@robot) ->
         super(@robot)
@@ -39,15 +43,13 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             @allowedTenants = process.env.HUBOT_OFFICE365_TENANT_FILTER.split(",")
             @robot.logger.info("#{LogPrefix} Restricting tenants to #{JSON.stringify(@allowedTenants)}")
 
-    toReceivable: (activity, cb) ->
+    toReceivable: (activity, teamsConnector, cb) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
         # Drop the activity if it came from an unauthorized tenant
         if @allowedTenants.length > 0 && !@allowedTenants.includes(getTenantId(activity))
             @robot.logger.info "#{LogPrefix} Unauthorized tenant; ignoring activity"
             return null
-
-        console.log("PAST TENANTS CHECK")
 
         # Get the user
         user = getUser(activity)
@@ -61,13 +63,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             return new Message(user)
         else
             # Try to get chat members first then construct the message to send to hubot
-            teamsConnector = new BotBuilderTeams.TeamsChatConnector {
-                appId: @robot.adapter.appId
-                appPassword: @robot.adapter.appPassword
-            }
+            # teamsConnector = new BotBuilderTeams.TeamsChatConnector {
+            #     appId: @robot.adapter.appId
+            #     appPassword: @robot.adapter.appPassword
+            # }
             teamsConnector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, result) =>
                 if err
-                    console.log("THROWING ERROR AT FETCH MEMBERS..OH")
                     return
 
                 activity = fixActivityForHubot(activity, @robot, result)

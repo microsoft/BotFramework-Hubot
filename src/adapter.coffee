@@ -12,6 +12,7 @@ Util = require 'util'
 Timers = require 'timers'
 
 BotBuilder = require 'botbuilder'
+BotBuilderTeams = require 'botbuilder-teams'
 { Robot, Adapter, TextMessage, User } = require 'hubot'
 Middleware = require './adapter-middleware'
 MicrosoftTeamsMiddleware = require './msteams-middleware'
@@ -65,6 +66,8 @@ class BotFrameworkAdapter extends Adapter
         @handleActivity activity for activity in activities
 
     handleActivity: (activity) ->
+        console.log("handle activity")
+        console.log(activity)
         @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
 
         # Construct the middleware
@@ -80,6 +83,8 @@ class BotFrameworkAdapter extends Adapter
                 if aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined
                     @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
                     activity.text = "hubot return unauthorized user error"
+                    # Change this to make a call to a middleware function that returns
+                    # a payload with the error text to return
             else
                 @robot.logger.info "#{LogPrefix} Message source doesn't support authorization"
                 activity.text = "hubot return source authorization not supported error"
@@ -91,7 +96,12 @@ class BotFrameworkAdapter extends Adapter
             if event?
                 @robot.receive event
         else
-            middleware.toReceivable activity, (event) =>
+            # Construct a TeamsChatConnector to pass to toReceivable
+            teamsConnector = new BotBuilderTeams.TeamsChatConnector {
+                appId: @robot.adapter.appId
+                appPassword: @robot.adapter.appPassword
+            }
+            middleware.toReceivable activity, teamsConnector, (event) =>
                 if event?
                     @robot.receive event
 
@@ -121,10 +131,12 @@ class BotFrameworkAdapter extends Adapter
                 setTimeout(@sendPayload, 500, @robot, @robot.brain.get("teamsResponse"))
             else
                 middleware.combineResponses(@robot.brain.get("teamsResponse"), payload)
-    
+
     sendPayload: (robot, payload) ->
         if !Array.isArray(payload)
             payload = [payload]
+        console.log("payload to send")
+        console.log(payload)
         robot.adapter.connector.send payload, (err, _) ->
             if err
                 throw err
