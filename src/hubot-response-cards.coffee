@@ -76,7 +76,7 @@ initializeAdaptiveCard = (query, text) ->
                     'text': "#{query}"
                     'speak': "<s>#{query}</s>"
                     'weight': 'bolder'
-                    'size': 'medium'
+                    'size': 'large'
                 }
             ]
         }
@@ -208,18 +208,22 @@ getFollowUpButtons = (query, regex) ->
 
     return actions
 
-# Appends the card body of card2 to card1 and returns card1
+# Appends the card body of card2 to card1, skipping
+# duplicate card body blocks, and returns card1
 appendCardBody = (card1, card2) ->
-    for block in card2.content.body
-        console.log("AAAAAAAAAAAAAAAAAAAAAAA")
-        console.log(card1.content.body is undefined)
-        console.log(card1.content.body is null)
-        console.log(card1.content.body == undefined)
-        console.log(card1.content.body == null)
-        if card1.content.body is undefined
-            card1.content.body = [block]
-        else
-            card1.content.body.push(block)
+    if card1.content.body is undefined
+        card1.content.body = card2.content.body
+        return card1
+
+    for newBlock in card2.content.body
+        hasBlock = false
+        for storedBlock in card1.content.body
+            if JSON.stringify(storedBlock) == JSON.stringify(newBlock)
+                hasBlock = true
+                break
+
+        if not hasBlock
+            card1.content.body.push(newBlock)
     return card1
 
 # Appends the card actions of card2 to those of card1, skipping
@@ -233,7 +237,7 @@ appendCardActions = (card1, card2) ->
         hasAction = false
         for storedAction in card1.content.actions
             if JSON.stringify(storedAction) == JSON.stringify(newAction)
-                hasAction = false
+                hasAction = true
                 break
 
         # if not in storedActions, add it
@@ -244,18 +248,6 @@ appendCardActions = (card1, card2) ->
 
 # HubotResponseCards maps from regex's of hubot queries to an array of follow up hubot
 # queries stored as strings
-
-    # *** Will add list hubot-github/gho commands here
-    # "list (gho|hubot-github) commands":[
-    #     "gho",
-    #     "gho list (teams|repos|members)",
-    #     "gho list public repos",
-    #     "gho create team <team name>",
-    #     "gho create repo <repo name>/<private|public>",
-    #     "gho add (members|repos) <members|repos> to team <team name>",
-    #     "gho remove (repos|members) <members|repos> from team <team name>",
-    #     "gho delete team <team name>"
-    # ]
 HubotResponseCards = {
     "list (gho|hubot-github) commands":[
         "gho",

@@ -47,6 +47,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             @robot.logger.info "#{LogPrefix} Unauthorized tenant; ignoring activity"
             return null
 
+        console.log("PAST TENANTS CHECK")
+
         # Get the user
         user = getUser(activity)
         user = @robot.brain.userForId(user.id, user)
@@ -65,7 +67,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             }
             teamsConnector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, result) =>
                 if err
-                    console.log("THERE WAS AN ERROR")
+                    console.log("THROWING ERROR AT FETCH MEMBERS..OH")
                     return
 
                 activity = fixActivityForHubot(activity, @robot, result)
@@ -114,20 +116,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
                 delete response.text
                 response.attachments = [heroCard.toAttachment()]
-
-            else if response.text == "unicorns"
-                heroCard = new BotBuilder.HeroCard()
-
-                button = new BotBuilder.CardAction.imBack()
-                button.data.title ='Follow up'
-                button.data.value = 'ping'
-
-                image = new BotBuilder.CardImage().url("http://30.media.tumblr.com/tumblr_lisw5dD4Pu1qbbpjfo1_400.jpg")
-                heroCard.images([image])
-                heroCard.buttons([button])
-                
-                delete response.text
-                response.attachments = [heroCard.toAttachment()]
             
             else if imageAttachment?
                 delete response.text
@@ -146,6 +134,52 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # Indicates that the authorization is supported for this middleware (Teams)
     supportsAuth: () ->
         return true
+
+    # Combines the text and attachments of multiple hubot messages sent in succession.
+    # Most of the first received response is kept, and the text and attachments of 
+    # subsequent responses received within 500ms of the first are combined into the
+    # first response.
+    combineResponses: (storedPayload, newPayload) ->
+        # If the stored payload is an array with typing and message messages
+        if Array.isArray(storedPayload) and storedPayload.length == 2
+            storedMessage = storedPayload[1]
+
+            # If the just received payload is an array with typing and message messages
+            if Array.isArray(newPayload) and newPayload.length == 2
+                newMessage = newPayload[1]
+
+                # Combine the payload text, if needed, separated by a break
+                if newMessage.text != undefined
+                    if storedMessage.text != undefined
+                        storedMessage.text = "#{storedMessage.text}<br/>#{newMessage.text}"
+                    else
+                        storedMessage.text = newPayload.text
+
+                # Combine attachments, if needed
+                if newMessage.attachments != undefined
+                    # If the stored message doesn't have attachments and the new one does,
+                    # just store the new attachments
+                    if storedMessage.attachments == undefined
+                        storedMessage.attachments = newMessage.attachments
+
+                    # Otherwise, combine them
+                    else
+                        storedCard = searchForAdaptiveCard(storedMessage.attachments)
+
+                        # If the stored message doesn't have an adaptive card, just append the new
+                        # attachments
+                        if storedCard == null
+                            storedMessage.attachments.push.apply(newMessage.attachments)
+
+                        for attachment in newMessage.attachments
+                            # If it's not an adaptive card, just append it, otherwise
+                            # combine the cards
+                            if attachment.contentType != "application/vnd.microsoft.card.adaptive"
+                                storedMessage.attachments.push(attachment)
+                            else
+                                storedCard = HubotResponseCards.appendCardBody(storedCard, attachment)
+                                storedCard = HubotResponseCards.appendCardActions(storedCard, attachment)
+
 
     #############################################################################
     # Helper methods for generating richer messages
@@ -189,6 +223,10 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     getRoomId = (activity) ->
         return activity?.address?.conversation?.id
 
+    # Fetches the conversation type from the activity
+    getConversationType = (activity) ->
+        return activity?.address?.conversation?.conversationType
+
     # Fetches the tenant id from the activity
     getTenantId = (activity) ->
         return activity?.sourceEvent?.tenant?.id
@@ -201,30 +239,34 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         return entities.filter((entity) -> entity.type == "mention" && (not userId? || userId == entity.mentioned?.id))
 
     # Fixes the activity to have the proper information for Hubot
-    #  0. Constructs the text command to send to hubot if the event is from a
+    #  1. Constructs the text command to send to hubot if the event is from a
     #  submit on an adaptive card (containing the value property). 
-    #  ***
-    #  1. Replaces all occurrences of the channel's bot at mention name with the configured name in hubot.
+    #  2. Replaces all occurrences of the channel's bot at mention name with the configured name in hubot.
     #  The hubot's configured name might not be the same name that is sent from the chat service in
     #  the activity's text.
-    #  2. Replaces all occurrences of @ mentions to users with their aad object id if the user is
+    #  3. Replaces all occurrences of @ mentions to users with their aad object id if the user is
     #  on the roster of chanenl members from Teams. If a mentioned user is not in the chat roster,
     #  the mention is replaced with their name.
-    #  3. Prepends hubot's name to the message if this is a direct message.
+    #  4. Prepends hubot's name to the message for personal messages if it's not already
+    #  there
     fixActivityForHubot = (activity, robot, chatMembers) ->
+        # If activity.value exists, the command is from a card and the correct
+        # query to send to hubot should be constructed
         if activity?.value != undefined
             data = activity.value
+            # Used to uniquely identify command parts since adaptive cards
+            # don't differentiate between different sub-cards' data fields
             queryPrefix = data.queryPrefix
-            console.log("********************")
-            console.log(data)
+
             # Get the first command part. A command always begins with a text part
-            # as commands always beging with the word 'hubot'
+            # since if activity.value is populated, the command is from a card we
+            # created, and we always include at least hubot at the beginning of
+            # these commands
             text = data[queryPrefix + " - query0"]
             text = text.replace("hubot", robot.name)
-            console.log(text)
 
             # If there are inputs, add those and the next query part
-            # if there is one
+            # if there is another query part
             i = 0
             input = data[queryPrefix + " - input#{i}"]
             while input != undefined
@@ -234,9 +276,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                     text = text + nextTextPart
                 i++
                 input = data[queryPrefix + " - input#{i}"]
-            console.log("CONSTRUCTING HUBOT TEXT QUERY")
-            console.log(text)
 
+            # Set the constructed query as the text of the activity
             activity.text = text
             return activity
 
@@ -261,14 +302,9 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                         replacement = member.objectId
             activity.text = activity.text.replace(mentionTextRegExp, replacement)
 
-        # prepends the robot's name for direct messages
-        if not activity.text.startsWith(robot.name)
+        # prepends the robot's name for direct messages if it's not already there
+        if getConversationType(activity) == 'personal' && activity.text.search(robot.name) != 0
             activity.text = "#{robot.name} #{activity.text}"
-
-        # Remove the newline character at the beginning or end of the text,
-        # if there are any
-        if activity.text.charAt(activity.text.length - 1) == '\n'
-            activity.text = activity.text.trim()
             
         return activity
 
@@ -278,7 +314,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # 1. Replaces all slack @ mentions with Teams @ mentions
     #  Slack mentions take the form of <@[username or id]|[mention text]>
     #  We have to convert this into a mention object which needs the id.
-    # Adds escapes for all < such as in the hubot help command
+    # 2. Escapes all < to render hubot help properly
+    # 3. Replaces all newlines with break tags to render line breaks properly
     fixMessageForTeams = (response, robot) ->
         if not response?.text?
             return response
@@ -307,11 +344,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             delete mention.full
         response.entities = mentions
 
-        # Escape <
+        # Escape < in hubot help commands, determined by the response text
+        # starting with 'hubot'
         if response.text.search("hubot") == 0
             response.text = escapeLessThan(response.text)
 
-        # Replace new lines with <br>
+        # Replace new lines with <br/>
         response.text = escapeNewLines(response.text)
 
         return response
@@ -328,9 +366,15 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     escapeNewLines = (str) ->
         return str.replace(/\n/g, "<br/>")
 
-    # On call, we know that response.text is text
-    constructHubotResponseCard = (activity) ->
-        # Check if response.text matches any of the query templates
+    # Helper method for retrieving the first adaptive card from a list of
+    # attachments or null if there are none
+    searchForAdaptiveCard = (attachments) ->
+        card = null
+        for attachment in attachments
+            if attachment.contentType == "application/vnd.microsoft.card.adaptive"
+                card = attachment
+        return card
+
 
 registerMiddleware 'msteams', MicrosoftTeamsMiddleware
 

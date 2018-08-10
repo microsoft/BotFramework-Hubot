@@ -3,17 +3,21 @@ expect = chai.expect
 { TextMessage, Message, User } = require 'hubot'
 MockRobot = require './mock-robot'
 MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
+BotFrameworkAdapter = require '../src/adapter'
 
 describe 'MicrosoftTeamsMiddleware', ->
     describe 'toReceivable', ->
         robot = null
         event = null
         chatMembers = null
+        cb = -> {}
+
         beforeEach ->
             delete process.env.HUBOT_OFFICE365_TENANT_FILTER
-            process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,eight888-four-4444-fore-twelve121212'
-            
+
             robot = new MockRobot
+            adapter = BotFrameworkAdapter.use(robot)
+            robot.adapter = adapter
             event =
                 type: 'message'
                 text: '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> about it'
@@ -74,7 +78,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -87,7 +91,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -101,7 +105,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -116,7 +120,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -130,7 +134,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -144,7 +148,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -158,7 +162,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -172,7 +176,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -206,7 +210,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -222,7 +226,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -242,7 +246,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -260,7 +264,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action
             receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, chatMembers)
+                receivable = teamsMiddleware.toReceivable(event, cb)
             ).to.not.throw()
 
             # Assert
@@ -566,3 +570,12 @@ describe 'MicrosoftTeamsMiddleware', ->
             ]
         
             expect(sendable).to.deep.equal(expected)
+
+    describe 'supportsAuth', ->
+        it 'should return true', ->
+            # Setup
+            robot = new MockRobot
+            middleware = new MSTeamsMiddleware(robot)
+
+            # Action and Assert
+            expect(middleware.supportsAuth()).to.be.false
