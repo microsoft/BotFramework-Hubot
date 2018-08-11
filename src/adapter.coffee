@@ -73,37 +73,68 @@ class BotFrameworkAdapter extends Adapter
         # Construct the middleware
         middleware = @using(activity.source)
 
-        # Return an error to the user if authorization is enabled and the message
-        # is either from a channel that doesn't support auth or if the user who sent the
-        # message isn't authorized
-        authorizedUsers = @robot.brain.get("authorizedUsers")
-        aadObjectId = activity?.address?.user?.aadObjectId
-        if @enableAuth == 'true'
-            if middleware.supportsAuth()
-                if aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined
-                    @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
-                    activity.text = "hubot return unauthorized user error"
-                    # Change this to make a call to a middleware function that returns
-                    # a payload with the error text to return
-            else
-                @robot.logger.info "#{LogPrefix} Message source doesn't support authorization"
-                activity.text = "hubot return source authorization not supported error"
-
+        # Return an error to the user if the message channel doesn't support authorization
+        # and authorization is enabled
         # If authorization isn't supported by the activity source, use
         # the text middleware, otherwise use the Teams middleware
         if not middleware.supportsAuth()
-            event = middleware.toReceivable activity
-            if event?
-                @robot.receive event
+            if @enableAuth == 'true'
+                @robot.logger.info "#{LogPrefix} Message source doesn't support authorization"
+                activity.text = "hubot return source authorization not supported error"
+                # This redundant section is included if we do the short circuit sendPayload thing
+                event = middleware.toReceivable activity
+                if event?
+                    @robot.receive event
+            else
+                event = middleware.toReceivable activity
+                if event?
+                    @robot.receive event
         else
             # Construct a TeamsChatConnector to pass to toReceivable
             teamsConnector = new BotBuilderTeams.TeamsChatConnector {
                 appId: @robot.adapter.appId
                 appPassword: @robot.adapter.appPassword
             }
-            middleware.toReceivable activity, teamsConnector, (event) =>
+            middleware.toReceivable activity, teamsConnector, @enableAuth == 'true', (event, unauthorizedError) =>
                 if event?
+                    console.log("********************************")
+                    console.log(event)
+                    # If unauthorized error occurred, overwrite the text
+                    if unauthorizedError
+                        event.text = "hubot return unauthorized user error"
                     @robot.receive event
+
+        # # Return an error to the user if authorization is enabled and the message
+        # # is either from a channel that doesn't support auth or if the user who sent the
+        # # message isn't authorized
+        # authorizedUsers = @robot.brain.get("authorizedUsers")
+        # aadObjectId = activity?.address?.user?.aadObjectId
+        # if @enableAuth == 'true'
+        #     if middleware.supportsAuth()
+        #         if aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined
+        #             @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
+        #             activity.text = "hubot return unauthorized user error"
+        #             # Change this to make a call to a middleware function that returns
+        #             # a payload with the error text to return
+        #     else
+        #         @robot.logger.info "#{LogPrefix} Message source doesn't support authorization"
+        #         activity.text = "hubot return source authorization not supported error"
+
+        # # If authorization isn't supported by the activity source, use
+        # # the text middleware, otherwise use the Teams middleware
+        # if not middleware.supportsAuth()
+        #     event = middleware.toReceivable activity
+        #     if event?
+        #         @robot.receive event
+        # else
+        #     # Construct a TeamsChatConnector to pass to toReceivable
+        #     teamsConnector = new BotBuilderTeams.TeamsChatConnector {
+        #         appId: @robot.adapter.appId
+        #         appPassword: @robot.adapter.appPassword
+        #     }
+        #     middleware.toReceivable activity, teamsConnector, (event) =>
+        #         if event? 
+        #             @robot.receive event
 
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"

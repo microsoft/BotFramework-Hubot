@@ -43,7 +43,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             @allowedTenants = process.env.HUBOT_OFFICE365_TENANT_FILTER.split(",")
             @robot.logger.info("#{LogPrefix} Restricting tenants to #{JSON.stringify(@allowedTenants)}")
 
-    toReceivable: (activity, teamsConnector, cb) ->
+    toReceivable: (activity, teamsConnector, authEnabled, cb) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
         # Drop the activity if it came from an unauthorized tenant
@@ -54,6 +54,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         # Get the user
         user = getUser(activity)
         user = @robot.brain.userForId(user.id, user)
+        console.log("++++++++++++++++++++++++++++++++++++++++++++++")
+        console.log(user)
 
         # We don't want to save the activity or room in the brain since its something that changes per chat.
         user.activity = activity
@@ -62,18 +64,35 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         if activity.type != 'message' && activity.type != 'invoke'
             return new Message(user)
         else
-            # Try to get chat members first then construct the message to send to hubot
-            # teamsConnector = new BotBuilderTeams.TeamsChatConnector {
-            #     appId: @robot.adapter.appId
-            #     appPassword: @robot.adapter.appPassword
-            # }
-            teamsConnector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, result) =>
+            # Fetch the roster of members to do authorization based on UPN
+            teamsConnector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, chatMembers) =>
                 if err
                     return
+                console.log("==========================================")
+                console.log(chatMembers)
+                # Set the unauthorizedError to true if auth is enabled and the user who sent 
+                # the message is not authorized
+                unauthorizedError = false
+                if authEnabled
+                    authorizedUsers = @robot.brain.get("authorizedUsers")
+                    console.log("---------------")
+                    console.log(chatMembers[0].userPrincipalName)
+                    # Get the sender's UPN
+                    senderUPN = getSenderUPN(user, chatMembers)
+                    console.log(senderUPN)
+                    if senderUPN is undefined or authorizedUsers[senderUPN] is undefined
+                        @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
+                        unauthorizedError = true
+                        # activity.text = "hubot return unauthorized user error"
+                        # Change this to make a call to a middleware function that returns
+                        # a payload with the error text to return
+                    
+                    # Add the sender's UPN to user
+                    user.userPrincipalName = senderUPN
 
-                activity = fixActivityForHubot(activity, @robot, result)
+                activity = fixActivityForHubot(activity, @robot, chatMembers)
                 message = new TextMessage(user, activity.text, activity.address.id)
-                cb(message)
+                cb(message, unauthorizedError)
 
     toSendable: (context, message) ->
         @robot.logger.info "#{LogPrefix} toSendable"
@@ -239,6 +258,16 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             entities = [entities]
         return entities.filter((entity) -> entity.type == "mention" && (not userId? || userId == entity.mentioned?.id))
 
+    # Returns the provided user's userPrincipalName (UPN) or null if one cannot be found
+    getSenderUPN = (user, chatMembers) ->
+        userAadObjectId = user.aadObjectId
+        for member in chatMembers
+            if userAadObjectId == member.objectId
+                return member.userPrincipalName
+        return null
+
+        
+
     # Fixes the activity to have the proper information for Hubot
     #  1. Constructs the text command to send to hubot if the event is from a
     #  submit on an adaptive card (containing the value property). 
@@ -300,7 +329,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             if chatMembers != undefined
                 for member in chatMembers
                     if mention.mentioned.id == member.id
-                        replacement = member.objectId
+                        replacement = member.userPrincipalName
+                        # *** replacement = member.objectId
             activity.text = activity.text.replace(mentionTextRegExp, replacement)
 
         # prepends the robot's name for direct messages if it's not already there
