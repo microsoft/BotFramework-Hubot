@@ -104,7 +104,8 @@ class BotFrameworkAdapter extends Adapter
                 appId: @robot.adapter.appId
                 appPassword: @robot.adapter.appPassword
             }
-            middleware.toReceivable activity, teamsConnector, @enableAuth == 'true', (event, unauthorizedError) =>
+            middleware.toReceivable activity, teamsConnector, @enableAuth == 'true', \
+                                    (event, unauthorizedError) =>
                 if event?
                     console.log("********************************")
                     console.log(event)

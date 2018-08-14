@@ -9,8 +9,6 @@ describe 'Main Adapter', ->
     describe 'Test Authorization Setup', ->
         beforeEach ->
             process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'an-1_20@em.ail,authorized_user@email.la'
-            # process.env.BOTBUILDER_APP_ID = 'botbuilder-app-id'
-            # process.env.BOTBUILDER_APP_PASSWORD = 'botbuilder-app-password'
             process.env.HUBOT_TEAMS_ENABLE_AUTH = 'true'
 
         it 'should not set initial admins when auth enable is not set', ->
