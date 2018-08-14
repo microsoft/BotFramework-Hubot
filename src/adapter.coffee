@@ -23,27 +23,47 @@ class BotFrameworkAdapter extends Adapter
     constructor: (robot) ->
         super robot
         @appId = process.env.BOTBUILDER_APP_ID
-        @appPassword = process.env.BOTBUILDER_APP_PASSWORD       
+        @appPassword = process.env.BOTBUILDER_APP_PASSWORD
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
+        @enableAuth = process.env.HUBOT_TEAMS_ENABLE_AUTH || 'false'
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
-        # Initial Admins should be required
-        if process.env.HUBOT_TEAMS_INITIAL_ADMINS
-            if robot.brain.get("authorizedUsers") is null
-                robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
-                authorizedUsers = {}
-                for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
-                    authorizedUsers[admin] = true
-                robot.brain.set("authorizedUsers", authorizedUsers)
-        else
-            throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required")
+        # Initial Admins should be required when auth is enabled
+        if @enableAuth == 'true'
+            if process.env.HUBOT_TEAMS_INITIAL_ADMINS
+                # If there isn't a list of authorized users in the brain, populate
+                # it with admins from the environment variable
+                if robot.brain.get("authorizedUsers") is null
+                    robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
+                    authorizedUsers = {}
+                    for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
+                        authorizedUsers[admin] = true
+                    robot.brain.set("authorizedUsers", authorizedUsers)
+            else
+                throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required for authorization")
 
-        @connector  = new BotBuilderTeams.TeamsChatConnector {
+        @connector  = new BotBuilder.ChatConnector {
             appId: @appId
             appPassword: @appPassword
         }
 
         @connector.onEvent (events, cb) => @onBotEvents events, cb
+
+        @connector.onInvoke (events, cb) => @menuCardInvoke events, cb
+
+
+    # If the command for the invoke doesn't need user input, handle the command
+    # normally. If it does need user input, return a prompt for user input.
+    menuCardInvoke: (invokeEvent, cb) ->
+        middleware = @using(invokeEvent.source)
+        payload = middleware.maybeConstructUserInputPrompt(invokeEvent)
+        if payload == null
+            invokeEvent.text = invokeEvent.value.hubotMessage
+            delete invokeEvent.value
+            @handleActivity(invokeEvent)
+        else
+            @sendPayload(@robot, payload)
+        return
 
     using: (name) ->
         MiddlewareClass = Middleware.middlewareFor(name)
@@ -55,30 +75,45 @@ class BotFrameworkAdapter extends Adapter
         @handleActivity activity for activity in activities
 
     handleActivity: (activity) ->
-        @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
-        console.log(activity)
+        @robot.logger.info "#{LogPrefix} Handling activity Channel:
+                            #{activity.source}; type: #{activity.type}"
 
-        # Drop the activity if the user cannot be authenticated with their
-        # AAD Object Id or if the user is unauthorized
-        authorizedUsers = @robot.brain.get("authorizedUsers")
-        aadObjectId = activity?.address?.user?.aadObjectId
-        if aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined
-           @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
-           return null
+        # Construct the middleware
+        middleware = @using(activity.source)
 
-        @connector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, result) =>
-            if err
+        # If authorization isn't supported by the activity source, use
+        # the text middleware, otherwise use the Teams middleware
+        if not middleware.supportsAuth()
+            # Return an error to the user if the message channel doesn't support authorization
+            # and authorization is enabled
+            if @enableAuth == 'true'
+                @robot.logger.info "#{LogPrefix} Authorization isn\'t supported for the channel"
+                text = "Authorization isn't supported for the channel"
+                payload = middleware.constructErrorResponse(activity, text)
+                @sendPayload(@robot, payload)
                 return
+            else
+                event = middleware.toReceivable activity
+                if event?
+                    @robot.receive event
+        else
+            teamsConnector = new BotBuilderTeams.TeamsChatConnector {
+                appId: @robot.adapter.appId
+                appPassword: @robot.adapter.appPassword
+            }
+            middleware.toReceivable activity, teamsConnector, @enableAuth == 'true', \
+                                    (event, unauthorizedError) =>
+                # Send an unauthorized error response to the user if an error occurred
+                if unauthorizedError
+                    @robot.logger.info "#{LogPrefix} Unauthorized user, sending error"
+                    text = "You are not authorized to send commands to hubot.
+                            To gain access, talk to your admins:"
+                    payload = middleware.constructErrorResponse(activity, text, true)
+                    @sendPayload(@robot, payload)
+                    return
 
-            # *** Could change the next line to only use the Teams adapter
-            #event = @using(activity.source).toReceivable(activity, result)
-            msTeamsMiddleware = new MicrosoftTeamsMiddleware(@robot)
-            event = msTeamsMiddleware.toReceivable(activity, result)
-
-            if event?
-                console.log("Hubot event:")
-                console.log(event)
-                @robot.receive event
+                if event?
+                    @robot.receive event
 
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"
@@ -86,19 +121,36 @@ class BotFrameworkAdapter extends Adapter
 
     reply: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} reply"
+
         for msg in messages
             activity = context.user.activity
-            payload = @using(activity.source).toSendable(context, msg)
+            middleware = @using(activity.source)
+            payload = middleware.toSendable(context, msg)
 
-            if !Array.isArray(payload)
-                payload = [payload]
-            
-            console.log("printing payload for reply: --------------------")
-            console.log(JSON.stringify(payload, null, 2))
-            @connector.send payload, (err, _) ->
-                if err
-                    console.log("THIS IS WHERE ITS THROWING THE ERROR")
-                    throw err
+            # If the message isn't from Teams, send it immediately
+            if activity.source != 'msteams'
+                @sendPayload(@robot, payload)
+                return
+
+            # The message is from Teams, so combine hubot responses
+            # received within the next 500 ms then send the combined
+            # response
+            if @robot.brain.get("justReceivedResponse") is null
+                @robot.brain.set("teamsResponse", payload)
+                @robot.brain.set("justReceivedResponse", true)
+                setTimeout(@sendPayload, 500, @robot, @robot.brain.get("teamsResponse"))
+            else
+                middleware.combineResponses(@robot.brain.get("teamsResponse"), payload)
+
+    sendPayload: (robot, payload) ->
+        if !Array.isArray(payload)
+            payload = [payload]
+
+        robot.adapter.connector.send payload, (err, _) ->
+            if err
+                throw err
+            robot.brain.remove("teamsResponse")
+            robot.brain.remove("justReceivedResponse")
 
     run: ->
         @robot.router.post @endpoint, @connector.listen()

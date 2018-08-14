@@ -23,7 +23,6 @@ describe 'BaseMiddleware', ->
         robot = null
         event = null
         beforeEach ->
-            process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,eight888-four-4444-fore-twelve121212'
             robot = new MockRobot
             event =
                 type: 'message'
@@ -81,7 +80,6 @@ describe 'TextMiddleware', ->
         robot = null
         event = null
         beforeEach ->
-            process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,eight888-four-4444-fore-twelve121212'
             robot = new MockRobot
             event =
                 type: 'message'
@@ -182,3 +180,12 @@ describe 'TextMiddleware', ->
             # Verify
             expected = message
             expect(sendable).to.deep.equal(expected)
+
+    describe 'supportsAuth', ->
+        it 'should return false', ->
+            # Setup
+            robot = new MockRobot
+            middleware = new TextMiddleware(robot)
+
+            # Action and Assert
+            expect(middleware.supportsAuth()).to.be.false

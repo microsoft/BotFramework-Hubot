@@ -2,19 +2,54 @@ chai = require 'chai'
 expect = chai.expect
 { TextMessage, Message, Robot, User } = require 'hubot'
 BotFrameworkAdapter = require '../src/adapter'
+MockRobot = require './mock-robot'
+
 
 describe 'Main Adapter', ->
-    describe 'Test Auth', ->
-        robot = null
+    describe 'Test Authorization Setup', ->
         beforeEach ->
-            process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee,eight888-four-4444-fore-twelve121212'
-            process.env.BOTBUILDER_APP_ID = 'botbuilder-app-id'
-            process.env.BOTBUILDER_APP_PASSWORD = 'botbuilder-app-password'
-            process.env.HUBOT_DEBUG_LEVEL= 'error'
-            robot = new Robot('../../hubot-botframework', 'botframework', false, 'hubot')
+            process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'an-1_20@em.ail,authorized_user@email.la'
+            process.env.HUBOT_TEAMS_ENABLE_AUTH = 'true'
 
-        it 'should set initial admins when robot is created', ->
+        it 'should not set initial admins when auth enable is not set', ->
             # Setup
+            delete process.env.HUBOT_TEAMS_ENABLE_AUTH
+            robot = new MockRobot
+
+            # Action
+            expect(() ->
+                adapter = BotFrameworkAdapter.use(robot)
+            ).to.not.throw()
+
+            # Assert
+            expect(robot.brain.get("authorizedUsers")).to.be.null
+
+        it 'should not set initial admins when auth is not enabled', ->
+            # Setup
+            process.env.HUBOT_TEAMS_ENABLE_AUTH = 'false'
+            robot = new MockRobot
+
+            # Action
+            expect(() ->
+                adapter = BotFrameworkAdapter.use(robot)
+            ).to.not.throw()
+
+            # Assert
+            expect(robot.brain.get("authorizedUsers")).to.be.null
+        
+        it 'should throw error when auth is enabled and initial admins', ->
+            # Setup
+            delete process.env.HUBOT_TEAMS_INITIAL_ADMINS
+            robot = new MockRobot
+
+            # Action and Assert
+            expect(() ->
+                adapter = BotFrameworkAdapter.use(robot)
+            ).to.throw()
+
+        it 'should set initial admins when auth is enabled', ->
+            # Setup
+            robot = new MockRobot
 
             # Action
             expect(() ->
@@ -23,35 +58,22 @@ describe 'Main Adapter', ->
 
             # Assert
             expect(robot.brain.get("authorizedUsers")).to.eql {
-                'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee': true
-                'eight888-four-4444-fore-twelve121212': true
+                'an-1_20@em.ail': true
+                'authorized_user@email.la': true
             }
     
-        it 'should allow messages from authorized users', ->
-            # Setup
+    describe 'Test Authorization Support for Teams Channel', ->
+        robot = null
+        adapter = null
+        event = null
+        beforeEach ->
+            process.env.HUBOT_TEAMS_INITIAL_ADMINS = 'an-1_20@em.ail,authorized_user@email.la'
+            process.env.BOTBUILDER_APP_ID = 'botbuilder-app-id'
+            process.env.BOTBUILDER_APP_PASSWORD = 'botbuilder-app-password'
+            process.env.HUBOT_TEAMS_ENABLE_AUTH = 'true'
+            robot = new MockRobot
             adapter = BotFrameworkAdapter.use(robot)
-            adapter.connector.fetchMembers = (serviceUrl, teamId, callback) ->
-                members = [
-                    {
-                        id: 'id-1'
-                        objectId: 'aad-object-id-1'
-                        name: 'user1 one'
-                        givenName: 'user1'
-                        surname: 'one'
-                        email: 'one@user.one'
-                        userPrincipalName: 'one@user.one'
-                    },
-                    {
-                        id: 'user-id'
-                        objectId: 'eight888-four-4444-fore-twelve121212'
-                        name: 'user-name'
-                        givenName: 'user-'
-                        surname: 'name'
-                        email: 'em@ai.l'
-                        userPrincipalName: 'em@ai.l'
-                    }
-                ]
-                callback false, members
+            robot.adapter = adapter
             event =
                 type: 'message'
                 text: '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> about it'
@@ -83,86 +105,44 @@ describe 'Main Adapter', ->
                         id: "user-id"
                         name: "user-name"
                         aadObjectId: "eight888-four-4444-fore-twelve121212"
+                        userPrincipalName: "user-UPN"
                     serviceUrl: 'url-serviceUrl/a-url'
 
-            # Action
-            expect(() ->
-                result = adapter.handleActivity(event)
-                expect(result).to.be.undefined
-            ).to.not.throw()
-
-            # Assert
-            expect(robot.brain.get("authorizedUsers")).to.eql {
-                'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee': true
-                'eight888-four-4444-fore-twelve121212': true
-            }
-
-        it 'should block messages from unauthorized users', ->
+        it 'should return authorization not supported error for non-Teams channels', ->
             # Setup
-            adapter = BotFrameworkAdapter.use(robot)
-            adapter.connector.fetchMembers = (serviceUrl, teamId, callback) ->
-                members = [
-                    {
-                        id: 'id-1'
-                        objectId: 'aad-object-id-1'
-                        name: 'user1 one'
-                        givenName: 'user1'
-                        surname: 'one'
-                        email: 'one@user.one'
-                        userPrincipalName: 'one@user.one'
-                    },
-                    {
-                        id: 'user-id'
-                        objectId: 'eight888-four-4444-fore-twelve121212'
-                        name: 'user-name'
-                        givenName: 'user-'
-                        surname: 'name'
-                        email: 'em@ai.l'
-                        userPrincipalName: 'em@ai.l'
-                    }
-                ]
-                callback false, members
-            event =
-                type: 'message'
-                text: '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> about it'
-                agent: 'tests'
-                source: 'msteams'
-                entities: [
-                    type: "mention"
-                    text: "<at>Bot</at>"
-                    mentioned:
-                        id: "bot-id"
-                        name: "bot-name"
-                ,
-                    type: "mention"
-                    text: "<at>User</at>"
-                    mentioned:
-                        id: "user-id"
-                        name: "user-name"
-                ]
-                attachments: []
-                sourceEvent:
-                    tenant:
-                        id: "tenant-id"
-                address:
-                    conversation:
-                        id: "19:conversation-id"
-                    bot:
-                        id: "bot-id"
-                    user:
-                        id: "id-1"
-                        name: "user1 one"
-                        aadObjectId: "aad-object-id-1"
-                    serviceUrl: 'url-serviceUrl/a-url'
+            event.source = 'authorization-not-supported-source'
 
             # Action
             expect(() ->
-                result = adapter.handleActivity(event)
-                expect(result).to.be.null
+                adapter.handleActivity(event)
             ).to.not.throw()
 
             # Assert
-            expect(robot.brain.get("authorizedUsers")).to.eql {
-                'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee': true
-                'eight888-four-4444-fore-twelve121212': true
-            }
+            result = robot.brain.get("event")
+            expect(result.text).to.eql "hubot return source authorization not supported error"
+
+        it 'should work when authorization is enabled and message is from Teams', ->
+            # Setup
+
+            # Action
+            expect(() ->
+                adapter.handleActivity(event)
+            ).to.not.throw()
+
+            # Assert
+            result = robot.brain.get("event")
+
+        it 'should work when message is from invoke', ->
+            # Setup
+            event.type = 'invoke'
+            event.value =
+                hubotMessage: 'hubot do something'
+            delete event.text
+
+            # Action
+            expect(() ->
+                adapter.sendTextToHubot(event)
+            ).to.not.throw()
+
+            # Assert
+            

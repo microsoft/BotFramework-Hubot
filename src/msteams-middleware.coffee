@@ -17,17 +17,20 @@
 #   3. Properly handles chat vs. channel messages
 #   4. Optionally filters out messages from outside the tenant
 #   5. Properly handles image responses.
+#   6. Generates adaptive cards with follow up buttons for specific commands
+#   7. Optionally restricts authorization to Hubot to a defined list of users
 #
 # Author:
 #	billbliss
 #
 
 BotBuilder = require 'botbuilder'
-#BotBuilderTeams = require 'botbuilder-teams'
-#MicrosoftGraph = require '@microsoft/microsoft-graph-client'
+HubotResponseCards = require './hubot-response-cards'
+HubotQueryParts = require './hubot-query-parts'
 { Robot, TextMessage, Message, User } = require 'hubot'
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
 LogPrefix = "hubot-msteams:"
+
 
 class MicrosoftTeamsMiddleware extends BaseMiddleware
     constructor: (@robot) ->
@@ -36,41 +39,55 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         @allowedTenants = []
         if process.env.HUBOT_OFFICE365_TENANT_FILTER?
             @allowedTenants = process.env.HUBOT_OFFICE365_TENANT_FILTER.split(",")
-            @robot.logger.info("#{LogPrefix} Restricting tenants to #{JSON.stringify(@allowedTenants)}")
+            @robot.logger.info("#{LogPrefix} Restricting tenants to \
+                                            #{JSON.stringify(@allowedTenants)}")
 
-    toReceivable: (activity, chatMembers) ->
+    toReceivable: (activity, teamsConnector, authEnabled, cb) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
         # Drop the activity if it came from an unauthorized tenant
         if @allowedTenants.length > 0 && !@allowedTenants.includes(getTenantId(activity))
             @robot.logger.info "#{LogPrefix} Unauthorized tenant; ignoring activity"
             return null
-        
-        # console.log("Checking booleans:----------------------------")
-        # console.log(@robot.brain.get("admins"))
-
-        # # Drop the activity if this user isn't authorized to send commands
-        # # Ignores unauthorized commands for now, may change to display error message
-        # authorizedUsers = @robot.brain.get("authorizedUsers")
-
-        # if authorizedUsers[getUserAadObjectId(activity)] is undefined
-        #    @robot.logger.info "#{LogPrefix} Unauthorized user; ignoring activity"
-        #    return null
-
 
         # Get the user
         user = getUser(activity)
         user = @robot.brain.userForId(user.id, user)
 
-        # We don't want to save the activity or room in the brain since its something that changes per chat.
+        # We don't want to save the activity or room in the brain since its
+        # something that changes per chat.
         user.activity = activity
         user.room = getRoomId(activity)
 
-        if activity.type == 'message'
+        # Fetch the roster of members to do authorization based on UPN
+        teamsConnector.fetchMembers activity?.address?.serviceUrl, \
+                            activity?.address?.conversation?.id, (err, chatMembers) =>
+            if err
+                console.log("YUP AN ERR")
+                return
+
+            # Return with unauthorized error as true if auth is enabled and the user who sent
+            # the message is not authorized
+            if authEnabled
+                authorizedUsers = @robot.brain.get("authorizedUsers")
+                senderUPN = getSenderUPN(user, chatMembers)
+
+                if senderUPN is undefined or authorizedUsers[senderUPN] is undefined
+                    @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
+                    unauthorizedError = true
+                    cb(null, true)
+                    return
+
+                # Add the sender's UPN to user
+                user.userPrincipalName = senderUPN
+
+            # Return a generic message if the activity isn't a message or invoke
+            if activity.type != 'message' && activity.type != 'invoke'
+                cb(new Message(user), false)
+
             activity = fixActivityForHubot(activity, @robot, chatMembers)
             message = new TextMessage(user, activity.text, activity.address.id)
-            return message
-        return new Message(user)
+            cb(message, false)
 
     toSendable: (context, message) ->
         @robot.logger.info "#{LogPrefix} toSendable"
@@ -83,206 +100,117 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 type: 'message'
                 text: message.trim()
                 address: activity?.address
-            
-            # *** Testing card templates checks
-            # if it matches, will fill it, otherwise, 
 
-
-            imageAttachment = convertToImageAttachment(message)
-            # Create a card with buttons for each
-            if response.text == "MS Teams Command list card"
-                heroCard = new BotBuilder.HeroCard()
-                heroCard.title('Hubot commands')
-                buttons = []
-                text = ""
-                for command in @robot.commands
-                    if text == ""
-                        text = command
-                    else
-                        text = "#{text}\n#{command}"
-                    parts = command.split(" - ")
-                    commandKeywords = parts[0].replace("hubot ", "")
-                    console.log(commandKeywords)
-
-                    button = new BotBuilder.CardAction.imBack()
-                    #button.title(command)
-                    button.title(commandKeywords)
-                    button.value(commandKeywords)
-                    buttons.push button
-                heroCard.buttons(buttons)
-                text = escapeLessThan(text)
-                text = escapeNewLines(text)
-                heroCard.text(text)
-
-                delete response.text
-                response.attachments = [heroCard.toAttachment()]
-
-            if response.text == "List the admins"
-                heroCard = new BotBuilder.HeroCard()
-                heroCard.title('Teams Admins')
-                
-                authorizedUsers = @robot.brain.get("authorizedUsers")
-
-                text = ""
-                for user, isAdmin of authorizedUsers
-                    if isAdmin
-                        if text == ""
-                            text = user
-                        else
-                            text = """#{text}
-                                    #{user}"""
-                text = escapeLessThan(text)
-                text = escapeNewLines(text)
-                heroCard.text(text)
-
-                delete response.text
-                response.attachments = [heroCard.toAttachment()]
-
-            else if response.text == "unicorns"
-                heroCard = new BotBuilder.HeroCard()
-
-                button = new BotBuilder.CardAction.imBack()
-                button.data.title ='Follow up'
-                button.data.value = 'ping'
-
-                image = new BotBuilder.CardImage().url("http://30.media.tumblr.com/tumblr_lisw5dD4Pu1qbbpjfo1_400.jpg")
-                heroCard.images([image])
-                heroCard.buttons([button])
-                
-                delete response.text
-                response.attachments = [heroCard.toAttachment()]
-
-            else if response.text == "dragons"
-                card = {
-                    'contentType': 'application/vnd.microsoft.card.adaptive',
-                    'content': {
-                        '$schema': 'http://adaptivecards.io/schemas/adaptive-card.json',
-                        'type': 'AdaptiveCard',
-                        'version': '1.0',
-                        'body': [
-                            {
-                                'type': 'Container',
-                                'speak': '<s>Hello!</s><s>Are you looking for a flight or a hotel?</s>',
-                                'items': [
-                                    {
-                                        'type': 'ColumnSet',
-                                        'columns': [
-                                            {
-                                                'type': 'Column',
-                                                'size': 'stretch',
-                                                'items': [
-                                                    {
-                                                        'type': 'TextBlock',
-                                                        'text': 'Hello!',
-                                                        'weight': 'bolder',
-                                                        'isSubtle': true
-                                                    },
-                                                    {
-                                                        'type': 'TextBlock',
-                                                        'text': 'Are you looking for a flight or a hotel?',
-                                                        'wrap': true
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
-                        ],
-                        'actions': [
-                        # Hotels Search form
-                            {
-                                'type': 'Action.ShowCard',
-                                'title': 'Hotels',
-                                'speak': '<s>Hotels</s>',
-                                'card': {
-                                    'type': 'AdaptiveCard',
-                                    'body': [
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'Welcome to the Hotels finder!',
-                                            'speak': '<s>Welcome to the Hotels finder!</s>',
-                                            'weight': 'bolder',
-                                            'size': 'large'
-                                        },
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'Please enter your destination:'
-                                        },
-                                        {
-                                            'type': 'Input.Text',
-                                            'id': 'destination',
-                                            'speak': '<s>Please enter your destination</s>',
-                                            'placeholder': 'Miami, Florida',
-                                            'style': 'text'
-                                        },
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'When do you want to check in?'
-                                        },
-                                        {
-                                            'type': 'Input.Date',
-                                            'id': 'checkin',
-                                            'speak': '<s>When do you want to check in?</s>'
-                                        },
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'How many nights do you want to stay?'
-                                        },
-                                        {
-                                            'type': 'Input.Number',
-                                            'id': 'nights',
-                                            'min': 1,
-                                            'max': 60,
-                                            'speak': '<s>How many nights do you want to stay?</s>'
-                                        }
-                                    ],
-                                    'actions': [
-                                        {
-                                            'type': 'Action.Submit',
-                                            'title': 'Search',
-                                            'speak': '<s>Search</s>',
-                                            'data': {
-                                                'text': "#{response.text}",
-                                                'type': 'hotelSearch'
-                                            }
-                                        }
-                                    ]
-                                }
-                            },
-                            {
-                                'type': 'Action.ShowCard',
-                                'title': 'Flights',
-                                'speak': '<s>Flights</s>',
-                                'card': {
-                                    'type': 'AdaptiveCard',
-                                    'body': [
-                                        {
-                                            'type': 'TextBlock',
-                                            'text': 'Flights is not implemented =(',
-                                            'speak': '<s>Flights is not implemented</s>',
-                                            'weight': 'bolder'
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                }
+            # If the query sent by the user should trigger a card,
+            # construct the card to attach to the response
+            card = HubotResponseCards.maybeConstructResponseCard(response, activity.text)
+            if card != null
                 delete response.text
                 response.attachments = [card]
-            
-            else if imageAttachment?
-                delete response.text
-                response.attachments = [imageAttachment]
+            else
+                imageAttachment = convertToImageAttachment(message)
+                if imageAttachment?
+                    delete response.text
+                    response.attachments = [imageAttachment]
 
         response = fixMessageForTeams(response, @robot)
 
         typingMessage =
           type: "typing"
           address: activity?.address
+        
+        # Check if there is a stored response
 
         return [typingMessage, response]
+    
+    # Indicates that the authorization is supported for this middleware (MSTeams)
+    supportsAuth: () ->
+        return true
+
+    # Combines the text and attachments of multiple hubot messages sent in succession.
+    # Most of the first received response is kept, and the text and attachments of
+    # subsequent responses received within 500ms of the first are combined into the
+    # first response.
+    combineResponses: (storedPayload, newPayload) ->
+        # If the stored payload is an array with typing and message messages
+        # and the just received payload is an array with typing and message messages
+        if Array.isArray(storedPayload) and storedPayload.length == 2 and \
+                        Array.isArray(newPayload) and newPayload.length == 2
+            storedMessage = storedPayload[1]
+            newMessage = newPayload[1]
+
+            # Combine the payload text, if needed, separated by a break
+            if newMessage.text != undefined
+                if storedMessage.text != undefined
+                    storedMessage.text = "#{storedMessage.text}<br/>#{newMessage.text}"
+                else
+                    storedMessage.text = newPayload.text
+
+            # Combine attachments, if needed
+            if newMessage.attachments != undefined
+                # If the stored message doesn't have attachments and the new one does,
+                # just store the new attachments
+                if storedMessage.attachments == undefined
+                    storedMessage.attachments = newMessage.attachments
+
+                # Otherwise, combine them
+                else
+                    storedCard = searchForAdaptiveCard(storedMessage.attachments)
+                    # If the stored message doesn't have an adaptive card, just append the new
+                    # attachments
+                    if storedCard == null
+                        storedMessage.attachments.push.apply(newMessage.attachments)
+
+                    for attachment in newMessage.attachments
+                        # If it's not an adaptive card, just append it, otherwise
+                        # combine the cards
+                        if attachment.contentType != "application/vnd.microsoft.card.adaptive"
+                            storedMessage.attachments.push(attachment)
+                        else
+                            storedCard = HubotResponseCards.appendCardBody(storedCard, \
+                                                                                attachment)
+                            storedCard = HubotResponseCards.appendCardActions(storedCard, \
+                                                                                attachment)
+
+    # Constructs a text message response to indicate an error to the user in the
+    # message channel they are using
+    constructErrorResponse: (activity, text, appendAdmins) ->
+        if appendAdmins
+            authorizedUsers = @robot.brain.get("authorizedUsers")
+            for userKey, isAdmin of authorizedUsers
+                if isAdmin
+                    text = """#{text}
+                            #{userKey}"""
+        typing =
+            type: 'typing'
+            address: activity?.address
+
+        payload =
+            type: 'message'
+            text: "#{text}"
+            address: activity?.address
+
+        return [typing, payload]
+
+    # Constructs a response containing a card for user input if needed or null
+    # if user input is not needed
+    maybeConstructUserInputPrompt: (event) ->
+        query = event.value.hubotMessage
+        console.log(query)
+
+        card = HubotResponseCards.maybeConstructMenuInputCard(query)
+        if card is null
+            console.log("CARD IS NULL")
+            return null
+
+        response =
+            type: 'message'
+            address: event?.address
+            attachments: [
+                card
+            ]
+
+        return response
 
     #############################################################################
     # Helper methods for generating richer messages
@@ -326,6 +254,10 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     getRoomId = (activity) ->
         return activity?.address?.conversation?.id
 
+    # Fetches the conversation type from the activity
+    getConversationType = (activity) ->
+        return activity?.address?.conversation?.conversationType
+
     # Fetches the tenant id from the activity
     getTenantId = (activity) ->
         return activity?.sourceEvent?.tenant?.id
@@ -335,19 +267,65 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         entities = activity?.entities || []
         if not Array.isArray(entities)
             entities = [entities]
-        return entities.filter((entity) -> entity.type == "mention" && (not userId? || userId == entity.mentioned?.id))
+        return entities.filter((entity) -> entity.type == "mention" && \
+                                (not userId? || userId == entity.mentioned?.id))
+
+    # Returns the provided user's userPrincipalName (UPN) or null if one cannot be found
+    getSenderUPN = (user, chatMembers) ->
+        userAadObjectId = user.aadObjectId
+        for member in chatMembers
+            if userAadObjectId == member.objectId
+                return member.userPrincipalName
+        return null
 
     # Fixes the activity to have the proper information for Hubot
-    #  1. Replaces all occurrences of the channel's bot at mention name with the configured name in hubot.
+    #  1. Constructs the text command to send to hubot if the event is from a
+    #  submit on an adaptive card (containing the value property).
+    #  2. Replaces all occurrences of the channel's bot at mention name with the configured
+    #  name in hubot.
     #  The hubot's configured name might not be the same name that is sent from the chat service in
     #  the activity's text.
-    #  2. Replaces all occurrences of @ mentions to users with their aad object id if the user is
+    #  3. Replaces all occurrences of @ mentions to users with their aad object id if the user is
     #  on the roster of chanenl members from Teams. If a mentioned user is not in the chat roster,
     #  the mention is replaced with their name.
-    #  3. Prepends hubot's name to the message if this is a direct message.
+    #  4. Trims all whitespace and newlines from the beginning and end of the text.
+    #  5. Prepends hubot's name to the message for personal messages if it's not already
+    #  there
     fixActivityForHubot = (activity, robot, chatMembers) ->
+        # If activity.value exists, the command is from a follow up button press on
+        # a card and the correct query to send to hubot should be constructed
+        if activity?.value != undefined
+            data = activity.value
+
+            # Used to uniquely identify command parts since adaptive cards
+            # don't differentiate between different sub-cards' data fields
+            queryPrefix = data.queryPrefix
+
+            # Get the first command part. A command always begins with a text part
+            # since if activity.value is populated, the command is from a card we
+            # created, and we always include at least hubot at the beginning of
+            # these commands
+            text = data[queryPrefix + " - query0"]
+            text = text.replace("hubot", robot.name)
+
+            # If there are inputs, add those and the next query part
+            # if there is another query part
+            i = 0
+            input = data[queryPrefix + " - input#{i}"]
+            while input != undefined
+                text = text + input
+                nextTextPart = data[queryPrefix + " - query" + (i + 1)]
+                if nextTextPart != undefined
+                    text = text + nextTextPart
+                i++
+                input = data[queryPrefix + " - input#{i}"]
+
+            # Set the constructed query as the text of the activity
+            activity.text = text
+
         if not activity?.text? || typeof activity.text isnt 'string'
             return activity
+
         myChatId = activity?.address?.bot?.id
         if not myChatId?
             return activity
@@ -361,20 +339,18 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             replacement = mention.mentioned.name
             if mention.mentioned.id == myChatId
                 replacement = robot.name
-            for member in chatMembers
-                if mention.mentioned.id == member.id
-                    replacement = member.objectId
+            if chatMembers != undefined
+                for member in chatMembers
+                    if mention.mentioned.id == member.id
+                        replacement = member.userPrincipalName
             activity.text = activity.text.replace(mentionTextRegExp, replacement)
+        
+        # Remove leading/trailing whitespace and newlines
+        activity.text = activity.text.trim()
 
-        # prepends the robot's name for direct messages
-        roomId = getRoomId(activity)
-        if roomId? and not roomId.startsWith("19:") and not activity.text.startsWith(robot.name)
+        # prepends the robot's name for direct messages if it's not already there
+        if getConversationType(activity) == 'personal' && activity.text.search(robot.name) != 0
             activity.text = "#{robot.name} #{activity.text}"
-
-        # Remove the newline character at the beginning or end of the text,
-        # if there are any
-        if activity.text.charAt(activity.text.length - 1) == '\n'
-            activity.text = activity.text.trim()
             
         return activity
 
@@ -384,7 +360,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # 1. Replaces all slack @ mentions with Teams @ mentions
     #  Slack mentions take the form of <@[username or id]|[mention text]>
     #  We have to convert this into a mention object which needs the id.
-    # Adds escapes for all < such as in the hubot help command
+    # 2. Escapes all < to render 'hubot help' properly
+    # 3. Replaces all newlines with break tags to render line breaks properly
     fixMessageForTeams = (response, robot) ->
         if not response?.text?
             return response
@@ -413,11 +390,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             delete mention.full
         response.entities = mentions
 
-        # Escape <
+        # Escape < in hubot help commands, determined by the response text
+        # starting with 'hubot'
         if response.text.search("hubot") == 0
             response.text = escapeLessThan(response.text)
 
-        # Replace new lines with <br>
+        # Replace new lines with <br/>
         response.text = escapeNewLines(response.text)
 
         return response
@@ -433,6 +411,16 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
     escapeNewLines = (str) ->
         return str.replace(/\n/g, "<br/>")
+
+    # Helper method for retrieving the first adaptive card from a list of
+    # attachments or null if there are none
+    searchForAdaptiveCard = (attachments) ->
+        card = null
+        for attachment in attachments
+            if attachment.contentType == "application/vnd.microsoft.card.adaptive"
+                card = attachment
+        return card
+
 
 registerMiddleware 'msteams', MicrosoftTeamsMiddleware
 
