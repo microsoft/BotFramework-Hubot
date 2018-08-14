@@ -17,22 +17,20 @@
 #   3. Properly handles chat vs. channel messages
 #   4. Optionally filters out messages from outside the tenant
 #   5. Properly handles image responses.
+#   6. Generates adaptive cards with follow up buttons for specific commands
+#   7. Optionally restricts authorization to Hubot to a defined list of users
 #
 # Author:
 #	billbliss
 #
 
 BotBuilder = require 'botbuilder'
-BotBuilderTeams = require 'botbuilder-teams'
 HubotResponseCards = require './hubot-response-cards'
 HubotQueryParts = require './hubot-query-parts'
 { Robot, TextMessage, Message, User } = require 'hubot'
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
 LogPrefix = "hubot-msteams:"
 
-#########################
-# Flags for testing
-MOCK_FETCH_MEMBERS = true
 
 class MicrosoftTeamsMiddleware extends BaseMiddleware
     constructor: (@robot) ->
@@ -68,30 +66,28 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 console.log("YUP AN ERR")
                 return
 
-            # Set the unauthorizedError to true if auth is enabled and the user who sent
+            # Return with unauthorized error as true if auth is enabled and the user who sent
             # the message is not authorized
-            unauthorizedError = false
             if authEnabled
                 authorizedUsers = @robot.brain.get("authorizedUsers")
-                # Get the sender's UPN
                 senderUPN = getSenderUPN(user, chatMembers)
+
                 if senderUPN is undefined or authorizedUsers[senderUPN] is undefined
                     @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
                     unauthorizedError = true
-                    # activity.text = "hubot return unauthorized user error"
-                    # Change this to make a call to a middleware function that returns
-                    # a payload with the error text to return
-                
+                    cb(null, true)
+                    return
+
                 # Add the sender's UPN to user
                 user.userPrincipalName = senderUPN
 
             # Return a generic message if the activity isn't a message or invoke
             if activity.type != 'message' && activity.type != 'invoke'
-                cb(new Message(user), unauthorizedError)
+                cb(new Message(user), false)
 
             activity = fixActivityForHubot(activity, @robot, chatMembers)
             message = new TextMessage(user, activity.text, activity.address.id)
-            cb(message, unauthorizedError)
+            cb(message, false)
 
     toSendable: (context, message) ->
         @robot.logger.info "#{LogPrefix} toSendable"
@@ -107,38 +103,15 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
             # If the query sent by the user should trigger a card,
             # construct the card to attach to the response
-            # and remove sentQuery from the brain
             card = HubotResponseCards.maybeConstructResponseCard(response, activity.text)
             if card != null
                 delete response.text
                 response.attachments = [card]
-
-            imageAttachment = convertToImageAttachment(message)
-
-            if response.text == "List the admins"
-                heroCard = new BotBuilder.HeroCard()
-                heroCard.title('Teams Admins')
-                
-                authorizedUsers = @robot.brain.get("authorizedUsers")
-
-                text = ""
-                for user, isAdmin of authorizedUsers
-                    if isAdmin
-                        if text == ""
-                            text = user
-                        else
-                            text = """#{text}
-                                    #{user}"""
-                text = escapeLessThan(text)
-                text = escapeNewLines(text)
-                heroCard.text(text)
-
-                delete response.text
-                response.attachments = [heroCard.toAttachment()]
-            
-            else if imageAttachment?
-                delete response.text
-                response.attachments = [imageAttachment]
+            else
+                imageAttachment = convertToImageAttachment(message)
+                if imageAttachment?
+                    delete response.text
+                    response.attachments = [imageAttachment]
 
         response = fixMessageForTeams(response, @robot)
 
@@ -150,7 +123,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
         return [typingMessage, response]
     
-    # Indicates that the authorization is supported for this middleware (Teams)
+    # Indicates that the authorization is supported for this middleware (MSTeams)
     supportsAuth: () ->
         return true
 
@@ -160,46 +133,44 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # first response.
     combineResponses: (storedPayload, newPayload) ->
         # If the stored payload is an array with typing and message messages
-        if Array.isArray(storedPayload) and storedPayload.length == 2
+        # and the just received payload is an array with typing and message messages
+        if Array.isArray(storedPayload) and storedPayload.length == 2 and \
+                        Array.isArray(newPayload) and newPayload.length == 2
             storedMessage = storedPayload[1]
+            newMessage = newPayload[1]
 
-            # If the just received payload is an array with typing and message messages
-            if Array.isArray(newPayload) and newPayload.length == 2
-                newMessage = newPayload[1]
+            # Combine the payload text, if needed, separated by a break
+            if newMessage.text != undefined
+                if storedMessage.text != undefined
+                    storedMessage.text = "#{storedMessage.text}<br/>#{newMessage.text}"
+                else
+                    storedMessage.text = newPayload.text
 
-                # Combine the payload text, if needed, separated by a break
-                if newMessage.text != undefined
-                    if storedMessage.text != undefined
-                        storedMessage.text = "#{storedMessage.text}<br/>#{newMessage.text}"
-                    else
-                        storedMessage.text = newPayload.text
+            # Combine attachments, if needed
+            if newMessage.attachments != undefined
+                # If the stored message doesn't have attachments and the new one does,
+                # just store the new attachments
+                if storedMessage.attachments == undefined
+                    storedMessage.attachments = newMessage.attachments
 
-                # Combine attachments, if needed
-                if newMessage.attachments != undefined
-                    # If the stored message doesn't have attachments and the new one does,
-                    # just store the new attachments
-                    if storedMessage.attachments == undefined
-                        storedMessage.attachments = newMessage.attachments
+                # Otherwise, combine them
+                else
+                    storedCard = searchForAdaptiveCard(storedMessage.attachments)
+                    # If the stored message doesn't have an adaptive card, just append the new
+                    # attachments
+                    if storedCard == null
+                        storedMessage.attachments.push.apply(newMessage.attachments)
 
-                    # Otherwise, combine them
-                    else
-                        storedCard = searchForAdaptiveCard(storedMessage.attachments)
-
-                        # If the stored message doesn't have an adaptive card, just append the new
-                        # attachments
-                        if storedCard == null
-                            storedMessage.attachments.push.apply(newMessage.attachments)
-
-                        for attachment in newMessage.attachments
-                            # If it's not an adaptive card, just append it, otherwise
-                            # combine the cards
-                            if attachment.contentType != "application/vnd.microsoft.card.adaptive"
-                                storedMessage.attachments.push(attachment)
-                            else
-                                storedCard = HubotResponseCards.appendCardBody(storedCard, \
-                                                                                    attachment)
-                                storedCard = HubotResponseCards.appendCardActions(storedCard, \
-                                                                                    attachment)
+                    for attachment in newMessage.attachments
+                        # If it's not an adaptive card, just append it, otherwise
+                        # combine the cards
+                        if attachment.contentType != "application/vnd.microsoft.card.adaptive"
+                            storedMessage.attachments.push(attachment)
+                        else
+                            storedCard = HubotResponseCards.appendCardBody(storedCard, \
+                                                                                attachment)
+                            storedCard = HubotResponseCards.appendCardActions(storedCard, \
+                                                                                attachment)
 
     # Constructs a text message response to indicate an error to the user in the
     # message channel they are using
@@ -307,8 +278,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 return member.userPrincipalName
         return null
 
-        
-
     # Fixes the activity to have the proper information for Hubot
     #  1. Constructs the text command to send to hubot if the event is from a
     #  submit on an adaptive card (containing the value property).
@@ -323,10 +292,11 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     #  5. Prepends hubot's name to the message for personal messages if it's not already
     #  there
     fixActivityForHubot = (activity, robot, chatMembers) ->
-        # If activity.value exists, the command is from a card and the correct
-        # query to send to hubot should be constructed
+        # If activity.value exists, the command is from a follow up button press on
+        # a card and the correct query to send to hubot should be constructed
         if activity?.value != undefined
             data = activity.value
+
             # Used to uniquely identify command parts since adaptive cards
             # don't differentiate between different sub-cards' data fields
             queryPrefix = data.queryPrefix
@@ -352,7 +322,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
             # Set the constructed query as the text of the activity
             activity.text = text
-            #return activity
 
         if not activity?.text? || typeof activity.text isnt 'string'
             return activity
@@ -374,7 +343,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 for member in chatMembers
                     if mention.mentioned.id == member.id
                         replacement = member.userPrincipalName
-                        # *** replacement = member.objectId
             activity.text = activity.text.replace(mentionTextRegExp, replacement)
         
         # Remove leading/trailing whitespace and newlines
@@ -392,7 +360,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # 1. Replaces all slack @ mentions with Teams @ mentions
     #  Slack mentions take the form of <@[username or id]|[mention text]>
     #  We have to convert this into a mention object which needs the id.
-    # 2. Escapes all < to render hubot help properly
+    # 2. Escapes all < to render 'hubot help' properly
     # 3. Replaces all newlines with break tags to render line breaks properly
     fixMessageForTeams = (response, robot) ->
         if not response?.text?

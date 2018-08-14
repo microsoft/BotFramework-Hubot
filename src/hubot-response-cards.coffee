@@ -1,16 +1,11 @@
-# Contains helper methods and data structures for constructing cards
-# to return to Teams with defined follow up queries.
+# Contains helper methods and data structures for constructing and
+# combining cards to return to Teams.
 
 HubotQueryParts = require './hubot-query-parts'
 
 maybeConstructResponseCard = (response, query) ->
-    # Check if the response is from a list commands follow up button press.
-    # If so, construct the needed input card and return it
-    # index = query.search("generate input card")
-    # if (index != -1)
-    #     return maybeConstructMenuInputCard(response.text)
-
-    # Check if response.text matches one of the reg exps in the LUT
+    # Check if response.text matches one of the reg exps in the LUT and
+    # construct a card if so. Otherwise, return null
     for regex of HubotResponseCards
         regexObject = new RegExp(regex)
         if regexObject.test(query)
@@ -20,14 +15,12 @@ maybeConstructResponseCard = (response, query) ->
             return card
     return null
 
-# Constructs an input card if needed or returns null if the
+# Constructs an input card or returns null if the
 # query doesn't need user input
 maybeConstructMenuInputCard = (query) ->
     queryParts = HubotQueryParts[query]
 
     # Check if the query needs a user input card
-    console.log(queryParts.inputParts is undefined)
-    console.log(queryParts.inputParts == undefined)
     if queryParts.inputParts is undefined
         return null
 
@@ -74,7 +67,7 @@ maybeConstructMenuInputCard = (query) ->
 
 
 # Initializes card structure
-initializeAdaptiveCard = (query, text) ->
+initializeAdaptiveCard = (query) ->
     card = {
         'contentType': 'application/vnd.microsoft.card.adaptive'
         'content': {
@@ -93,6 +86,7 @@ initializeAdaptiveCard = (query, text) ->
     }
     return card
 
+# Constructs an adaptive card text block to add to a card
 addTextBlock = (text) ->
     textBlock = {
         'type': 'TextBlock'
@@ -101,7 +95,7 @@ addTextBlock = (text) ->
     }
     return textBlock
 
-# Parses the query to extract
+# Constructs an adaptive card input selector to add to a card
 addSelector = (queryPrefix, choicesText, id) ->
     selector = {
         "type": "Input.ChoiceSet"
@@ -120,6 +114,7 @@ addSelector = (queryPrefix, choicesText, id) ->
 
     return selector
 
+# Constructs an adaptive card text input to add to a card
 addTextInput = (id, inputPart) ->
     textInput = {
         'type': 'Input.Text'
@@ -131,8 +126,8 @@ addTextInput = (id, inputPart) ->
     }
     return textInput
 
-# Creates an array of JSON adaptive card actions for the
-# card in construction
+# Creates an array of JSON adaptive card actions to use for
+# a specific card
 getFollowUpButtons = (query, regex) ->
     actions = []
     for followUpQuery in HubotResponseCards[regex]
@@ -159,6 +154,7 @@ getFollowUpButtons = (query, regex) ->
         # and a submit button containing the text parts
         else
             action.type = 'Action.ShowCard'
+            # Add the title for the sub card
             action.card = {
                 'type': 'AdaptiveCard'
                 'body': [
@@ -185,10 +181,13 @@ getFollowUpButtons = (query, regex) ->
 
                 # Create selector
                 if index != -1
-                    action.card.body.push(addSelector(followUpQuery, inputPart.substring(index + 1), followUpQuery + " - input" + "#{i}"))
+                    action.card.body.push(addSelector(followUpQuery, \
+                                            inputPart.substring(index + 1), \
+                                            followUpQuery + " - input" + "#{i}"))
                 # Create text input
                 else
-                    action.card.body.push(addTextInput(followUpQuery + " - input" + "#{i}", inputPart))
+                    action.card.body.push(addTextInput(followUpQuery + " - input" + "#{i}", \
+                                            inputPart))
 
             # Create the submit button in the sub card
             data = {
@@ -250,7 +249,7 @@ appendCardActions = (card1, card2) ->
 
     return card1
 
-# Create a short version of the command by including only the
+# Helper method to create a short version of the command by including only the
 # start of the command to the first user input marked by ( or <
 constructShortQuery = (query) ->
     shortQueryEnd = query.search(new RegExp("[(<]"))
@@ -262,7 +261,7 @@ constructShortQuery = (query) ->
 # HubotResponseCards maps from regex's of hubot queries to an array of follow up hubot
 # queries stored as strings
 HubotResponseCards = {
-    "list (gho|hubot-github) commands":[
+    "list (gho|hubot-github) commands": [
         "gho",
         "gho list (teams|repos|members)",
         "gho list public repos",
@@ -295,7 +294,7 @@ HubotResponseCards = {
         "gho create team <team name>",
         "gho list (teams|repos|members)"
     ]
-}  
+}
 
 module.exports = {
     maybeConstructResponseCard,

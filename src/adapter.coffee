@@ -75,19 +75,17 @@ class BotFrameworkAdapter extends Adapter
         @handleActivity activity for activity in activities
 
     handleActivity: (activity) ->
-        console.log("handle activity")
-        console.log(activity)
         @robot.logger.info "#{LogPrefix} Handling activity Channel:
                             #{activity.source}; type: #{activity.type}"
 
         # Construct the middleware
         middleware = @using(activity.source)
 
-        # Return an error to the user if the message channel doesn't support authorization
-        # and authorization is enabled
         # If authorization isn't supported by the activity source, use
         # the text middleware, otherwise use the Teams middleware
         if not middleware.supportsAuth()
+            # Return an error to the user if the message channel doesn't support authorization
+            # and authorization is enabled
             if @enableAuth == 'true'
                 @robot.logger.info "#{LogPrefix} Authorization isn\'t supported for the channel"
                 text = "Authorization isn't supported for the channel"
@@ -99,26 +97,22 @@ class BotFrameworkAdapter extends Adapter
                 if event?
                     @robot.receive event
         else
-            # Construct a TeamsChatConnector to pass to toReceivable
             teamsConnector = new BotBuilderTeams.TeamsChatConnector {
                 appId: @robot.adapter.appId
                 appPassword: @robot.adapter.appPassword
             }
             middleware.toReceivable activity, teamsConnector, @enableAuth == 'true', \
                                     (event, unauthorizedError) =>
+                # Send an unauthorized error response to the user if an error occurred
+                if unauthorizedError
+                    @robot.logger.info "#{LogPrefix} Unauthorized user, sending error"
+                    text = "You are not authorized to send commands to hubot.
+                            To gain access, talk to your admins:"
+                    payload = middleware.constructErrorResponse(activity, text, true)
+                    @sendPayload(@robot, payload)
+                    return
+
                 if event?
-                    console.log("********************************")
-                    console.log(event)
-
-                    if unauthorizedError
-                        @robot.logger.info "#{LogPrefix} Unauthorized user, sending error"
-                        
-                        text = "You are not authorized to send commands to hubot.
-                                To gain access, talk to your admins:"
-                        payload = middleware.constructErrorResponse(activity, text, true)
-                        @sendPayload(@robot, payload)
-                        return
-
                     @robot.receive event
 
     send: (context, messages...) ->
@@ -151,8 +145,7 @@ class BotFrameworkAdapter extends Adapter
     sendPayload: (robot, payload) ->
         if !Array.isArray(payload)
             payload = [payload]
-        console.log("payload to send")
-        console.log(payload)
+
         robot.adapter.connector.send payload, (err, _) ->
             if err
                 throw err
