@@ -225,9 +225,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # if user input is not needed
     maybeConstructUserInputPrompt: (event) ->
         query = event.value.hubotMessage
-
-        # Remove the hubot prefix, if there is one
-        query = query.replace("hubot ", "")
         console.log(query)
 
         card = HubotResponseCards.maybeConstructMenuInputCard(query)

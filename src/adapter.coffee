@@ -89,13 +89,6 @@ class BotFrameworkAdapter extends Adapter
         # the text middleware, otherwise use the Teams middleware
         if not middleware.supportsAuth()
             if @enableAuth == 'true'
-                # @robot.logger.info "#{LogPrefix} Message source doesn't support authorization"
-                # activity.text = "hubot return source authorization not supported error"
-                # # This redundant section is included if we do the short circuit sendPayload thing
-                # event = middleware.toReceivable activity
-                # if event?
-                #     @robot.receive event
-                # A payload has at least type and address
                 @robot.logger.info "#{LogPrefix} Authorization isn\'t supported for the channel"
                 text = "Authorization isn't supported for the channel"
                 payload = middleware.constructErrorResponse(activity, text)
@@ -106,15 +99,6 @@ class BotFrameworkAdapter extends Adapter
                 if event?
                     @robot.receive event
         else
-            # Check for clicks from the dropdown menu
-            if activity?.value?.needsUserInput == 'true'
-                payload = middleware.maybeConstructUserInputPrompt(activity)
-                if payload != null
-                    @sendPayload(@robot, payload)
-                    return
-                activity.text = activity.value.hubotMessage
-                delete activity.value
-
             # Construct a TeamsChatConnector to pass to toReceivable
             teamsConnector = new BotBuilderTeams.TeamsChatConnector {
                 appId: @robot.adapter.appId
