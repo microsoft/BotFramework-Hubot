@@ -25,7 +25,7 @@
 BotBuilder = require 'botbuilder'
 BotBuilderTeams = require 'botbuilder-teams'
 HubotResponseCards = require './hubot-response-cards'
-#MicrosoftGraph = require '@microsoft/microsoft-graph-client'
+HubotQueryParts = require './hubot-query-parts'
 { Robot, TextMessage, Message, User } = require 'hubot'
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
 LogPrefix = "hubot-msteams:"
@@ -41,7 +41,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         @allowedTenants = []
         if process.env.HUBOT_OFFICE365_TENANT_FILTER?
             @allowedTenants = process.env.HUBOT_OFFICE365_TENANT_FILTER.split(",")
-            @robot.logger.info("#{LogPrefix} Restricting tenants to #{JSON.stringify(@allowedTenants)}")
+            @robot.logger.info("#{LogPrefix} Restricting tenants to \
+                                            #{JSON.stringify(@allowedTenants)}")
 
     toReceivable: (activity, teamsConnector, authEnabled, cb) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
@@ -54,45 +55,43 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         # Get the user
         user = getUser(activity)
         user = @robot.brain.userForId(user.id, user)
-        console.log("++++++++++++++++++++++++++++++++++++++++++++++")
-        console.log(user)
 
-        # We don't want to save the activity or room in the brain since its something that changes per chat.
+        # We don't want to save the activity or room in the brain since its
+        # something that changes per chat.
         user.activity = activity
         user.room = getRoomId(activity)
 
-        if activity.type != 'message' && activity.type != 'invoke'
-            return new Message(user)
-        else
-            # Fetch the roster of members to do authorization based on UPN
-            teamsConnector.fetchMembers activity?.address?.serviceUrl, activity?.address?.conversation?.id, (err, chatMembers) =>
-                if err
-                    return
-                console.log("==========================================")
-                console.log(chatMembers)
-                # Set the unauthorizedError to true if auth is enabled and the user who sent 
-                # the message is not authorized
-                unauthorizedError = false
-                if authEnabled
-                    authorizedUsers = @robot.brain.get("authorizedUsers")
-                    console.log("---------------")
-                    console.log(chatMembers[0].userPrincipalName)
-                    # Get the sender's UPN
-                    senderUPN = getSenderUPN(user, chatMembers)
-                    console.log(senderUPN)
-                    if senderUPN is undefined or authorizedUsers[senderUPN] is undefined
-                        @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
-                        unauthorizedError = true
-                        # activity.text = "hubot return unauthorized user error"
-                        # Change this to make a call to a middleware function that returns
-                        # a payload with the error text to return
-                    
-                    # Add the sender's UPN to user
-                    user.userPrincipalName = senderUPN
+        # Fetch the roster of members to do authorization based on UPN
+        teamsConnector.fetchMembers activity?.address?.serviceUrl, \
+                            activity?.address?.conversation?.id, (err, chatMembers) =>
+            if err
+                console.log("YUP AN ERR")
+                return
 
-                activity = fixActivityForHubot(activity, @robot, chatMembers)
-                message = new TextMessage(user, activity.text, activity.address.id)
-                cb(message, unauthorizedError)
+            # Set the unauthorizedError to true if auth is enabled and the user who sent
+            # the message is not authorized
+            unauthorizedError = false
+            if authEnabled
+                authorizedUsers = @robot.brain.get("authorizedUsers")
+                # Get the sender's UPN
+                senderUPN = getSenderUPN(user, chatMembers)
+                if senderUPN is undefined or authorizedUsers[senderUPN] is undefined
+                    @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
+                    unauthorizedError = true
+                    # activity.text = "hubot return unauthorized user error"
+                    # Change this to make a call to a middleware function that returns
+                    # a payload with the error text to return
+                
+                # Add the sender's UPN to user
+                user.userPrincipalName = senderUPN
+
+            # Return a generic message if the activity isn't a message or invoke
+            if activity.type != 'message' && activity.type != 'invoke'
+                cb(new Message(user), unauthorizedError)
+
+            activity = fixActivityForHubot(activity, @robot, chatMembers)
+            message = new TextMessage(user, activity.text, activity.address.id)
+            cb(message, unauthorizedError)
 
     toSendable: (context, message) ->
         @robot.logger.info "#{LogPrefix} toSendable"
@@ -109,7 +108,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             # If the query sent by the user should trigger a card,
             # construct the card to attach to the response
             # and remove sentQuery from the brain
-            card = HubotResponseCards.maybeConstructCard(response, activity.text)
+            card = HubotResponseCards.maybeConstructResponseCard(response, activity.text)
             if card != null
                 delete response.text
                 response.attachments = [card]
@@ -156,7 +155,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         return true
 
     # Combines the text and attachments of multiple hubot messages sent in succession.
-    # Most of the first received response is kept, and the text and attachments of 
+    # Most of the first received response is kept, and the text and attachments of
     # subsequent responses received within 500ms of the first are combined into the
     # first response.
     combineResponses: (storedPayload, newPayload) ->
@@ -197,9 +196,53 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                             if attachment.contentType != "application/vnd.microsoft.card.adaptive"
                                 storedMessage.attachments.push(attachment)
                             else
-                                storedCard = HubotResponseCards.appendCardBody(storedCard, attachment)
-                                storedCard = HubotResponseCards.appendCardActions(storedCard, attachment)
+                                storedCard = HubotResponseCards.appendCardBody(storedCard, \
+                                                                                    attachment)
+                                storedCard = HubotResponseCards.appendCardActions(storedCard, \
+                                                                                    attachment)
 
+    # Constructs a text message response to indicate an error to the user in the
+    # message channel they are using
+    constructErrorResponse: (activity, text, appendAdmins) ->
+        if appendAdmins
+            authorizedUsers = @robot.brain.get("authorizedUsers")
+            for userKey, isAdmin of authorizedUsers
+                if isAdmin
+                    text = """#{text}
+                            #{userKey}"""
+        typing =
+            type: 'typing'
+            address: activity?.address
+
+        payload =
+            type: 'message'
+            text: "#{text}"
+            address: activity?.address
+
+        return [typing, payload]
+
+    # Constructs a response containing a card for user input if needed or null
+    # if user input is not needed
+    maybeConstructUserInputPrompt: (event) ->
+        query = event.value.hubotMessage
+
+        # Remove the hubot prefix, if there is one
+        query = query.replace("hubot ", "")
+        console.log(query)
+
+        card = HubotResponseCards.maybeConstructMenuInputCard(query)
+        if card is null
+            console.log("CARD IS NULL")
+            return null
+
+        response =
+            type: 'message'
+            address: event?.address
+            attachments: [
+                card
+            ]
+
+        return response
 
     #############################################################################
     # Helper methods for generating richer messages
@@ -256,7 +299,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         entities = activity?.entities || []
         if not Array.isArray(entities)
             entities = [entities]
-        return entities.filter((entity) -> entity.type == "mention" && (not userId? || userId == entity.mentioned?.id))
+        return entities.filter((entity) -> entity.type == "mention" && \
+                                (not userId? || userId == entity.mentioned?.id))
 
     # Returns the provided user's userPrincipalName (UPN) or null if one cannot be found
     getSenderUPN = (user, chatMembers) ->
@@ -270,14 +314,16 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
     # Fixes the activity to have the proper information for Hubot
     #  1. Constructs the text command to send to hubot if the event is from a
-    #  submit on an adaptive card (containing the value property). 
-    #  2. Replaces all occurrences of the channel's bot at mention name with the configured name in hubot.
+    #  submit on an adaptive card (containing the value property).
+    #  2. Replaces all occurrences of the channel's bot at mention name with the configured
+    #  name in hubot.
     #  The hubot's configured name might not be the same name that is sent from the chat service in
     #  the activity's text.
     #  3. Replaces all occurrences of @ mentions to users with their aad object id if the user is
     #  on the roster of chanenl members from Teams. If a mentioned user is not in the chat roster,
     #  the mention is replaced with their name.
-    #  4. Prepends hubot's name to the message for personal messages if it's not already
+    #  4. Trims all whitespace and newlines from the beginning and end of the text.
+    #  5. Prepends hubot's name to the message for personal messages if it's not already
     #  there
     fixActivityForHubot = (activity, robot, chatMembers) ->
         # If activity.value exists, the command is from a card and the correct
@@ -309,10 +355,11 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
             # Set the constructed query as the text of the activity
             activity.text = text
-            return activity
+            #return activity
 
         if not activity?.text? || typeof activity.text isnt 'string'
             return activity
+
         myChatId = activity?.address?.bot?.id
         if not myChatId?
             return activity
@@ -332,6 +379,9 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                         replacement = member.userPrincipalName
                         # *** replacement = member.objectId
             activity.text = activity.text.replace(mentionTextRegExp, replacement)
+        
+        # Remove leading/trailing whitespace and newlines
+        activity.text = activity.text.trim()
 
         # prepends the robot's name for direct messages if it's not already there
         if getConversationType(activity) == 'personal' && activity.text.search(robot.name) != 0

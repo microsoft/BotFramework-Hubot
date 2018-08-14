@@ -11,15 +11,21 @@ describe 'MicrosoftTeamsMiddleware', ->
     describe 'toReceivable', ->
         robot = null
         event = null
-        chatMembers = null
-        cb = -> {}
+        teamsChatConnector = null
+        authEnabled = false
+        cb = ->
+            robot.receive event
 
         beforeEach ->
             delete process.env.HUBOT_OFFICE365_TENANT_FILTER
-
             robot = new MockRobot
-            adapter = BotFrameworkAdapter.use(robot)
-            robot.adapter = adapter
+            options = {
+                appId: 'botframework-app-id'
+                appPassword: 'botframework-app-password'
+            }
+            teamsChatConnector = new MockTeamsChatConnector(options)
+
+            authEnabled = false
             event =
                 type: 'message'
                 text: '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> about it'
@@ -52,97 +58,135 @@ describe 'MicrosoftTeamsMiddleware', ->
                         name: "user-name"
                         aadObjectId: 'eight888-four-4444-fore-twelve121212'
 
-        it 'should allow messages without tenant id when tenant filter is empty', ->
+
+        it 'should allow messages when auth is not enabled', ->
             # Setup
-            console.log("**************************************")
-            console.log(MicrosoftTeamsMiddleware.toString())
             delete event.sourceEvent
             teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
-            options = {
-                appId: 'botframework-app-id'
-                appPassword: 'botframework-app-password'
-            }
-            teamsChatConnector = new MockTeamsChatConnector(options)
-            
 
             # Action
-            receivable = null
             expect(() ->
-                receivable = teamsMiddleware.toReceivable(event, teamsChatConnector, cb)
+                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
-            expect(receivable).to.be.a('Object')
+            result = robot.brain.get("event")
+            expect(result).to.be.a('Object')
 
-    #     it 'should allow messages with tenant id when tenant filter is empty', ->
-    #         # Setup
-    #         teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+        it 'should set unauthorized error for message when user isn\'t authorized', ->
+            # Setup
+            robot.brain.data["authorizedUsers"] = 
+                'an-1_20@em.ail': true
+                'authorized_user@email.la': false
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            authEnabled = true
+            cb = (event, unauthorizedError) ->
+                robot.brain.data["unauthError"] = unauthorizedError
+                robot.receive event
 
-    #         # Action
-    #         receivable = null
-    #         expect(() ->
-    #             receivable = teamsMiddleware.toReceivable(event, cb)
-    #         ).to.not.throw()
+            # Action
+            expect(() ->
+                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+            ).to.not.throw()
 
-    #         # Assert
-    #         expect(receivable).to.be.a('Object')
+            # Assert
+            result = robot.brain.get("event")
+            expect(result).to.be.a('Object')
+            expect(robot.brain.get("unauthError")).to.be.true
 
-    #     it 'should allow messages from allowed tenant ids', ->
-    #         # Setup
-    #         process.env.HUBOT_OFFICE365_TENANT_FILTER = event.sourceEvent.tenant.id
-    #         teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+        it 'should allow messages without tenant id when tenant filter is empty', ->
+            # Setup
+            delete event.sourceEvent
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
 
-    #         # Action
-    #         receivable = null
-    #         expect(() ->
-    #             receivable = teamsMiddleware.toReceivable(event, cb)
-    #         ).to.not.throw()
+            # Action
+            expect(() ->
+                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+            ).to.not.throw()
 
-    #         # Assert
-    #         expect(receivable).to.be.a('Object')
+            # Assert
+            result = robot.brain.get("event")
+            expect(result).to.be.a('Object')
 
-    #     it 'should block messages from unallowed tenant ids', ->
-    #         # Setup
-    #         process.env.HUBOT_OFFICE365_TENANT_FILTER = event.sourceEvent.tenant.id
-    #         event.sourceEvent.tenant.id = "different-tenant-id"
-    #         teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+        it 'should allow messages with tenant id when tenant filter is empty', ->
+            # Setup
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
 
-    #         # Action
-    #         receivable = null
-    #         expect(() ->
-    #             receivable = teamsMiddleware.toReceivable(event, cb)
-    #         ).to.not.throw()
+            # Action
+            expect(() ->
+                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+            ).to.not.throw()
 
-    #         # Assert
-    #         expect(receivable).to.be.null
+            # Assert
+            result = robot.brain.get("event")
+            expect(result).to.be.a('Object')
 
-    #     it 'return generic message when appropriate type is not found', ->
-    #         # Setup
-    #         event.type = 'typing'
-    #         teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+        it 'should allow messages from allowed tenant ids', ->
+            # Setup
+            process.env.HUBOT_OFFICE365_TENANT_FILTER = event.sourceEvent.tenant.id
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
 
-    #         # Action
-    #         receivable = null
-    #         expect(() ->
-    #             receivable = teamsMiddleware.toReceivable(event, cb)
-    #         ).to.not.throw()
+            # Action
+            expect(() ->
+                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+            ).to.not.throw()
 
-    #         # Assert
-    #         expect(receivable).to.be.not.null
+            # Assert
+            result = robot.brain.get("event")
+            expect(result).to.be.a('Object')
 
-    #     it 'should work when activity text is an object', ->
-    #         # Setup
-    #         event.text = event
-    #         teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+        it 'should block messages from unallowed tenant ids', ->
+            # Setup
+            process.env.HUBOT_OFFICE365_TENANT_FILTER = event.sourceEvent.tenant.id
+            event.sourceEvent.tenant.id = "different-tenant-id"
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
 
-    #         # Action
-    #         receivable = null
-    #         expect(() ->
-    #             receivable = teamsMiddleware.toReceivable(event, cb)
-    #         ).to.not.throw()
+            # Action
+            expect(() ->
+                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+            ).to.not.throw()
 
-    #         # Assert
-    #         expect(receivable.text).to.equal(event)
+            # Assert
+            result = robot.brain.get("event")
+            expect(result).to.be.null
+
+        it 'return generic message when appropriate type is not found', ->
+            # Setup
+            event.type = 'typing'
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+
+            # Action
+            expect(() ->
+                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+            ).to.not.throw()
+
+            # Assert
+            result = robot.brain.get("event")
+            expect(result).to.be.not.null
+        
+        # Test when message is from follow up button
+        it 'should work when activity value contains query parts', ->
+            # Setup
+            
+
+            # Action
+
+            # Assert
+
+
+        it 'should work when activity text is an object', ->
+            # Setup
+            event.text = event
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+
+            # Action
+            expect(() ->
+                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+            ).to.not.throw()
+
+            # Assert
+            result = robot.brain.get("event")
+            expect(result.text).to.equal(event)
 
     #     it 'should work when mentions not provided', ->
     #         # Setup

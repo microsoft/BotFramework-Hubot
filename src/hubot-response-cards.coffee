@@ -3,12 +3,12 @@
 
 HubotQueryParts = require './hubot-query-parts'
 
-maybeConstructCard = (response, query) ->
+maybeConstructResponseCard = (response, query) ->
     # Check if the response is from a list commands follow up button press.
     # If so, construct the needed input card and return it
-    index = query.search("generate input card")
-    if (index != -1)
-        return constructMenuInputCard(query.replace("generate input card", ""), response.text)
+    # index = query.search("generate input card")
+    # if (index != -1)
+    #     return maybeConstructMenuInputCard(response.text)
 
     # Check if response.text matches one of the reg exps in the LUT
     for regex of HubotResponseCards
@@ -20,10 +20,19 @@ maybeConstructCard = (response, query) ->
             return card
     return null
 
-# Constructs an input card
-constructMenuInputCard = (query, text) ->
-    card = initializeAdaptiveCard(query)
-    queryParts = HubotQueryParts[text]
+# Constructs an input card if needed or returns null if the
+# query doesn't need user input
+maybeConstructMenuInputCard = (query) ->
+    queryParts = HubotQueryParts[query]
+
+    # Check if the query needs a user input card
+    console.log(queryParts.inputParts is undefined)
+    console.log(queryParts.inputParts == undefined)
+    if queryParts.inputParts is undefined
+        return null
+
+    shortQuery = constructShortQuery(query)
+    card = initializeAdaptiveCard(shortQuery)
 
     # Create the input fields of the sub card
     for i in [0 ... queryParts.inputParts.length]
@@ -38,7 +47,8 @@ constructMenuInputCard = (query, text) ->
 
         # Create selector
         if index != -1
-            card.content.body.push(addSelector(query, inputPart.substring(index + 1), query + " - input" + "#{i}"))
+            card.content.body.push(addSelector(query, inputPart.substring(index + 1),
+                                                query + " - input" + "#{i}"))
         # Create text input
         else
             card.content.body.push(addTextInput(query + " - input" + "#{i}", inputPart))
@@ -126,13 +136,7 @@ addTextInput = (id, inputPart) ->
 getFollowUpButtons = (query, regex) ->
     actions = []
     for followUpQuery in HubotResponseCards[regex]
-
-        # Create a short version of the command by including only the
-        # start of the command to the first user input marked by ( or <
-        shortQueryEnd = followUpQuery.search(new RegExp("[(<]"))
-        if shortQueryEnd == -1
-            shortQueryEnd = followUpQuery.length
-        shortQuery = followUpQuery.substring(0, shortQueryEnd)
+        shortQuery = constructShortQuery(followUpQuery)
         action = {
             'title': shortQuery
         }
@@ -246,6 +250,15 @@ appendCardActions = (card1, card2) ->
 
     return card1
 
+# Create a short version of the command by including only the
+# start of the command to the first user input marked by ( or <
+constructShortQuery = (query) ->
+    shortQueryEnd = query.search(new RegExp("[(<]"))
+    if shortQueryEnd == -1
+        shortQueryEnd = query.length
+    shortQuery = query.substring(0, shortQueryEnd)
+    return shortQuery.trim()
+
 # HubotResponseCards maps from regex's of hubot queries to an array of follow up hubot
 # queries stored as strings
 HubotResponseCards = {
@@ -285,7 +298,8 @@ HubotResponseCards = {
 }  
 
 module.exports = {
-    maybeConstructCard,
+    maybeConstructResponseCard,
+    maybeConstructMenuInputCard,
     appendCardBody,
     appendCardActions
 }

@@ -23,7 +23,7 @@ class BotFrameworkAdapter extends Adapter
     constructor: (robot) ->
         super robot
         @appId = process.env.BOTBUILDER_APP_ID
-        @appPassword = process.env.BOTBUILDER_APP_PASSWORD       
+        @appPassword = process.env.BOTBUILDER_APP_PASSWORD
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
         @enableAuth = process.env.HUBOT_TEAMS_ENABLE_AUTH || 'false'
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
@@ -49,12 +49,21 @@ class BotFrameworkAdapter extends Adapter
 
         @connector.onEvent (events, cb) => @onBotEvents events, cb
 
-        @connector.onInvoke (events, cb) => @sendTextToHubot events, cb
+        @connector.onInvoke (events, cb) => @menuCardInvoke events, cb
 
-    sendTextToHubot: (invokeEvent, cb) ->
-        invokeEvent.text = invokeEvent.value.hubotMessage
-        delete invokeEvent.value
-        @handleActivity(invokeEvent)
+
+    # If the command for the invoke doesn't need user input, handle the command
+    # normally. If it does need user input, return a prompt for user input.
+    menuCardInvoke: (invokeEvent, cb) ->
+        middleware = @using(invokeEvent.source)
+        payload = middleware.maybeConstructUserInputPrompt(invokeEvent)
+        if payload == null
+            invokeEvent.text = invokeEvent.value.hubotMessage
+            delete invokeEvent.value
+            @handleActivity(invokeEvent)
+        else
+            @sendPayload(@robot, payload)
+        return
 
     using: (name) ->
         MiddlewareClass = Middleware.middlewareFor(name)
@@ -68,7 +77,8 @@ class BotFrameworkAdapter extends Adapter
     handleActivity: (activity) ->
         console.log("handle activity")
         console.log(activity)
-        @robot.logger.info "#{LogPrefix} Handling activity Channel: #{activity.source}; type: #{activity.type}"
+        @robot.logger.info "#{LogPrefix} Handling activity Channel:
+                            #{activity.source}; type: #{activity.type}"
 
         # Construct the middleware
         middleware = @using(activity.source)
@@ -79,17 +89,32 @@ class BotFrameworkAdapter extends Adapter
         # the text middleware, otherwise use the Teams middleware
         if not middleware.supportsAuth()
             if @enableAuth == 'true'
-                @robot.logger.info "#{LogPrefix} Message source doesn't support authorization"
-                activity.text = "hubot return source authorization not supported error"
-                # This redundant section is included if we do the short circuit sendPayload thing
-                event = middleware.toReceivable activity
-                if event?
-                    @robot.receive event
+                # @robot.logger.info "#{LogPrefix} Message source doesn't support authorization"
+                # activity.text = "hubot return source authorization not supported error"
+                # # This redundant section is included if we do the short circuit sendPayload thing
+                # event = middleware.toReceivable activity
+                # if event?
+                #     @robot.receive event
+                # A payload has at least type and address
+                @robot.logger.info "#{LogPrefix} Authorization isn\'t supported for the channel"
+                text = "Authorization isn't supported for the channel"
+                payload = middleware.constructErrorResponse(activity, text)
+                @sendPayload(@robot, payload)
+                return
             else
                 event = middleware.toReceivable activity
                 if event?
                     @robot.receive event
         else
+            # Check for clicks from the dropdown menu
+            if activity?.value?.needsUserInput == 'true'
+                payload = middleware.maybeConstructUserInputPrompt(activity)
+                if payload != null
+                    @sendPayload(@robot, payload)
+                    return
+                activity.text = activity.value.hubotMessage
+                delete activity.value
+
             # Construct a TeamsChatConnector to pass to toReceivable
             teamsConnector = new BotBuilderTeams.TeamsChatConnector {
                 appId: @robot.adapter.appId
@@ -99,42 +124,17 @@ class BotFrameworkAdapter extends Adapter
                 if event?
                     console.log("********************************")
                     console.log(event)
-                    # If unauthorized error occurred, overwrite the text
+
                     if unauthorizedError
-                        event.text = "hubot return unauthorized user error"
+                        @robot.logger.info "#{LogPrefix} Unauthorized user, sending error"
+                        
+                        text = "You are not authorized to send commands to hubot.
+                                To gain access, talk to your admins:"
+                        payload = middleware.constructErrorResponse(activity, text, true)
+                        @sendPayload(@robot, payload)
+                        return
+
                     @robot.receive event
-
-        # # Return an error to the user if authorization is enabled and the message
-        # # is either from a channel that doesn't support auth or if the user who sent the
-        # # message isn't authorized
-        # authorizedUsers = @robot.brain.get("authorizedUsers")
-        # aadObjectId = activity?.address?.user?.aadObjectId
-        # if @enableAuth == 'true'
-        #     if middleware.supportsAuth()
-        #         if aadObjectId is undefined or authorizedUsers[aadObjectId] is undefined
-        #             @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
-        #             activity.text = "hubot return unauthorized user error"
-        #             # Change this to make a call to a middleware function that returns
-        #             # a payload with the error text to return
-        #     else
-        #         @robot.logger.info "#{LogPrefix} Message source doesn't support authorization"
-        #         activity.text = "hubot return source authorization not supported error"
-
-        # # If authorization isn't supported by the activity source, use
-        # # the text middleware, otherwise use the Teams middleware
-        # if not middleware.supportsAuth()
-        #     event = middleware.toReceivable activity
-        #     if event?
-        #         @robot.receive event
-        # else
-        #     # Construct a TeamsChatConnector to pass to toReceivable
-        #     teamsConnector = new BotBuilderTeams.TeamsChatConnector {
-        #         appId: @robot.adapter.appId
-        #         appPassword: @robot.adapter.appPassword
-        #     }
-        #     middleware.toReceivable activity, teamsConnector, (event) =>
-        #         if event? 
-        #             @robot.receive event
 
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"

@@ -9,7 +9,19 @@ class MockRobot
             "hubot b - does something b"
         ]
         @brain =
-            userForId: -> {}
+            data: {}
+            userForId: (id, options) ->
+                user = {
+                    id: "#{id}"
+                    name: "a-hubot-user-name"
+                }
+                if options is null
+                    return user
+                else
+                    for key of options
+                        user[key] = options[key]
+                return user
+
             users: -> []
             get: (key) ->
                 if @data is undefined
@@ -18,16 +30,9 @@ class MockRobot
                     if key == storedKey
                         return @data[storedKey]
                 return null
+            set: (key, value) ->
+                @data[key] = value
 
-        if process.env.HUBOT_TEAMS_ENABLE_AUTH == 'true'
-            if process.env.HUBOT_TEAMS_INITIAL_ADMINS
-                @brain.data = {}
-                authorizedUsers = {}
-                for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
-                    authorizedUsers[admin] = true
-                @brain.data["authorizedUsers"] = authorizedUsers
-                    
-            else
-                throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required")
-    receive: -> {}
+    receive: (event) ->
+        @brain.data["event"] = event
 module.exports = MockRobot

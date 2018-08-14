@@ -43,6 +43,15 @@ class TextMiddleware extends BaseMiddleware
         
         return message
     
+    # Constructs a text message response to indicate an error to the user in the
+    # message channel they are using
+    constructErrorResponse: (activity, text) ->
+        payload =
+            type: 'message'
+            text: "#{text}"
+            address: activity?.address
+        return payload
+    
     # Indicates that the authorization isn't supported for this middleware
     supportsAuth: () ->
         return false
