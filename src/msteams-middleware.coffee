@@ -142,7 +142,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             # Combine the payload text, if needed, separated by a break
             if newMessage.text != undefined
                 if storedMessage.text != undefined
-                    storedMessage.text = "#{storedMessage.text}<br/>#{newMessage.text}"
+                    storedMessage.text = "#{storedMessage.text}\r\n#{newMessage.text}"
                 else
                     storedMessage.text = newPayload.text
 
@@ -196,6 +196,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # if user input is not needed
     maybeConstructUserInputPrompt: (event) ->
         query = event.value.hubotMessage
+        # Remove hubot from the beginning of the command if it's there
+        query = query.replace("hubot ", "")
         console.log(query)
 
         card = HubotResponseCards.maybeConstructMenuInputCard(query)
@@ -395,7 +397,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         if response.text.search("hubot") == 0
             response.text = escapeLessThan(response.text)
 
-        # Replace new lines with <br/>
+        # Replace \n with html <br/> for rendering breaks in Teams
         response.text = escapeNewLines(response.text)
 
         return response
@@ -404,9 +406,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
 
     escapeLessThan = (str) ->
-        #str = str.replace(/</g, "`<")
         str = str.replace(/</g, "&lt;")
-        #str = str.replace(/>/g, ">`")
         return str
 
     escapeNewLines = (str) ->
