@@ -26,5 +26,8 @@ class MockTeamsChatConnector
         ]
 
         callback false, members
+    
+    send: (payload) ->
+        robot.brain.set("payload", payload)
 
 module.exports = MockTeamsChatConnector

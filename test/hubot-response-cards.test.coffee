@@ -487,7 +487,7 @@ describe 'HubotResponseCards', ->
             ).to.not.throw()
 
             # Assert
-            expect(JSON.stringify(result)).to.eql JSON.stringify(expected)
+            expect(result).to.deep.equal(expected)
         
         it 'card2 doesn\'t have a body, should return card1 unchanged', ->
             # Setup
@@ -500,7 +500,7 @@ describe 'HubotResponseCards', ->
             ).to.not.throw()
 
             # Assert
-            expect(JSON.stringify(result)).to.eql JSON.stringify(expected)
+            expect(result).to.deep.equal(expected)
 
         it 'card1 doesn\'t have a body, result body should equal card2\'s body', ->
             # Setup
@@ -514,7 +514,7 @@ describe 'HubotResponseCards', ->
             ).to.not.throw()
 
             # Assert
-            expect(JSON.stringify(result)).to.eql JSON.stringify(expected)
+            expect(result).to.deep.equal(expected)
 
         it 'both cards have bodies, should combine both bodies into card1 and remove duplicates', ->
             # Setup
@@ -554,7 +554,7 @@ describe 'HubotResponseCards', ->
             ).to.not.throw()
 
             # Assert
-            expect(JSON.stringify(result)).to.eql JSON.stringify(expected)
+            expect(result).to.deep.equal(expected)
 
     describe 'appendCardActions', ->
         card1 = null
@@ -658,7 +658,7 @@ describe 'HubotResponseCards', ->
             ).to.not.throw()
 
             # Assert
-            expect(JSON.stringify(result)).to.eql JSON.stringify(expected)
+            expect(result).to.deep.equal(expected)
 
         it 'card2 doesn\'t have actions, should return card1 unchanged', ->
             # Setup
@@ -671,7 +671,7 @@ describe 'HubotResponseCards', ->
             ).to.not.throw()
 
             # Assert
-            expect(JSON.stringify(result)).to.eql JSON.stringify(expected)
+            expect(result).to.deep.equal(expected)
 
         it 'card1 doesn\'t have actions, result actions should equal card2\'s actions', ->
             # Setup
@@ -685,7 +685,7 @@ describe 'HubotResponseCards', ->
             ).to.not.throw()
 
             # Assert
-            expect(JSON.stringify(result)).to.eql JSON.stringify(expected)
+            expect(result).to.deep.equal(expected)
 
         it 'both cards have actions, should combine both actions into card1 and remove duplicates', ->
             # Setup
@@ -705,4 +705,4 @@ describe 'HubotResponseCards', ->
             ).to.not.throw()
 
             # Assert
-            expect(JSON.stringify(result)).to.eql JSON.stringify(expected)
+            expect(result).to.deep.equal(expected)

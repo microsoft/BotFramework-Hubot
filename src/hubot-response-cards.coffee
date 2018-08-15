@@ -265,16 +265,6 @@ constructShortQuery = (query) ->
 # HubotResponseCards maps from regex's of hubot queries to an array of follow up hubot
 # queries stored as strings
 HubotResponseCards = {
-    "list (gho|hubot-github) commands": [
-        "gho",
-        "gho list (teams|repos|members)",
-        "gho list public repos",
-        "gho create team <team name>",
-        "gho create repo <repo name>/<private|public>",
-        "gho add (members|repos) <members|repos> to team <team name>",
-        "gho remove (repos|members) <members|repos> from team <team name>",
-        "gho delete team <team name>"
-    ]
     "(.+) gho list (teams|repos|members)": [
         "gho list (teams|repos|members)",
         "gho list public repos"

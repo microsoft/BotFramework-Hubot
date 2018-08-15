@@ -83,6 +83,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             # Return a generic message if the activity isn't a message or invoke
             if activity.type != 'message' && activity.type != 'invoke'
                 cb(new Message(user), false)
+                return
 
             activity = fixActivityForHubot(activity, @robot, chatMembers)
             message = new TextMessage(user, activity.text, activity.address.id)
@@ -128,48 +129,45 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
     # Combines the text and attachments of multiple hubot messages sent in succession.
     # Most of the first received response is kept, and the text and attachments of
-    # subsequent responses received within 500ms of the first are combined into the
-    # first response.
+    # subsequent responses received within 200ms of the first are combined into the
+    # first response. Assumes inputs follow the format of the payload returned by
+    # toSendable
     combineResponses: (storedPayload, newPayload) ->
-        # If the stored payload is an array with typing and message messages
-        # and the just received payload is an array with typing and message messages
-        if Array.isArray(storedPayload) and storedPayload.length == 2 and \
-                        Array.isArray(newPayload) and newPayload.length == 2
-            storedMessage = storedPayload[1]
-            newMessage = newPayload[1]
+        storedMessage = storedPayload[1]
+        newMessage = newPayload[1]
 
-            # Combine the payload text, if needed, separated by a break
-            if newMessage.text != undefined
-                if storedMessage.text != undefined
-                    storedMessage.text = "#{storedMessage.text}\r\n#{newMessage.text}"
-                else
-                    storedMessage.text = newPayload.text
+        # Combine the payload text, if needed, separated by a break
+        if newMessage.text != undefined
+            if storedMessage.text != undefined
+                storedMessage.text = "#{storedMessage.text}\r\n#{newMessage.text}"
+            else
+                storedMessage.text = newPayload.text
 
-            # Combine attachments, if needed
-            if newMessage.attachments != undefined
-                # If the stored message doesn't have attachments and the new one does,
-                # just store the new attachments
-                if storedMessage.attachments == undefined
-                    storedMessage.attachments = newMessage.attachments
+        # Combine attachments, if needed
+        if newMessage.attachments != undefined
+            # If the stored message doesn't have attachments and the new one does,
+            # just store the new attachments
+            if storedMessage.attachments == undefined
+                storedMessage.attachments = newMessage.attachments
 
-                # Otherwise, combine them
-                else
-                    storedCard = searchForAdaptiveCard(storedMessage.attachments)
-                    # If the stored message doesn't have an adaptive card, just append the new
-                    # attachments
-                    if storedCard == null
-                        storedMessage.attachments.push.apply(newMessage.attachments)
+            # Otherwise, combine them
+            else
+                storedCard = searchForAdaptiveCard(storedMessage.attachments)
+                # If the stored message doesn't have an adaptive card, just append the new
+                # attachments
+                if storedCard == null
+                    storedMessage.attachments.push.apply(newMessage.attachments)
 
-                    for attachment in newMessage.attachments
-                        # If it's not an adaptive card, just append it, otherwise
-                        # combine the cards
-                        if attachment.contentType != "application/vnd.microsoft.card.adaptive"
-                            storedMessage.attachments.push(attachment)
-                        else
-                            storedCard = HubotResponseCards.appendCardBody(storedCard, \
-                                                                                attachment)
-                            storedCard = HubotResponseCards.appendCardActions(storedCard, \
-                                                                                attachment)
+                for attachment in newMessage.attachments
+                    # If it's not an adaptive card, just append it, otherwise
+                    # combine the cards
+                    if attachment.contentType != "application/vnd.microsoft.card.adaptive"
+                        storedMessage.attachments.push(attachment)
+                    else
+                        storedCard = HubotResponseCards.appendCardBody(storedCard, \
+                                                                            attachment)
+                        storedCard = HubotResponseCards.appendCardActions(storedCard, \
+                                                                            attachment)
 
     # Constructs a text message response to indicate an error to the user in the
     # message channel they are using
@@ -350,7 +348,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         # prepends the robot's name for direct messages if it's not already there
         if getConversationType(activity) == 'personal' && activity.text.search(robot.name) != 0
             activity.text = "#{robot.name} #{activity.text}"
-            
+
         return activity
 
     slackMentionRegExp = /<@([^\|>]*)\|?([^>]*)>/g

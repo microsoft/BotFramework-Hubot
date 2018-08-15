@@ -133,7 +133,7 @@ class BotFrameworkAdapter extends Adapter
                 return
 
             # The message is from Teams, so combine hubot responses
-            # received within the next 500 ms then send the combined
+            # received within the next 200 ms then send the combined
             # response
             if @robot.brain.get("justReceivedResponse") is null
                 @robot.brain.set("teamsResponse", payload)
@@ -145,7 +145,7 @@ class BotFrameworkAdapter extends Adapter
     sendPayload: (robot, payload) ->
         if !Array.isArray(payload)
             payload = [payload]
-
+        console.log(JSON.stringify(payload, null, 2))
         robot.adapter.connector.send payload, (err, _) ->
             if err
                 throw err
