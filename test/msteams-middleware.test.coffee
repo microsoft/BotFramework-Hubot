@@ -960,13 +960,13 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it 'should not change stored payload attachments when new doesn\'t have attachments', ->
             # Setup
-            storedPayload.attachments = [
+            storedPayload[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'some-image-url'
                 }
             ]
-            expected.attachments = [
+            expected[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'some-image-url'
@@ -984,13 +984,13 @@ describe 'MicrosoftTeamsMiddleware', ->
         # stored doesn't have, set stored to equal new attachments
         it 'should add all attachments to stored when stored doesn\'t have attachments and new does', ->
             # Setup
-            newPayload.attachments = [
+            newPayload[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'some-image-url'
                 }
             ]
-            expected.attachments = [
+            expected[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'some-image-url'
@@ -1009,13 +1009,13 @@ describe 'MicrosoftTeamsMiddleware', ->
         # stored doesn't have, set stored to equal new attachments
         it 'should append all new attachments when stored doesn\'t have adaptive card attachment', ->
             # Setup
-            storedPayload.attachments = [
+            storedPayload[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'some-image-url'
                 }
             ]
-            newPayload.attachments = [
+            newPayload[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'another-image-url'
@@ -1037,7 +1037,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                     }
                 }
             ]
-            expected.attachments = [
+            expected[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'some-image-url'
@@ -1074,7 +1074,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it 'should combine attachments correctly so there is only one adaptive card attachment in the end', ->
             # Setup
-            storedPayload.attachments = [
+            storedPayload[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'some-image-url'
@@ -1096,7 +1096,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                     }
                 }
             ]
-            newPayload.attachments = [
+            newPayload[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'another-image-url'
@@ -1118,14 +1118,10 @@ describe 'MicrosoftTeamsMiddleware', ->
                     }
                 }
             ]
-            expected.attachments = [
+            expected[1].attachments = [
                 {
                     contentType: 'image'
                     url: 'some-image-url'
-                },
-                {
-                    contentType: 'image'
-                    url: 'another-image-url'
                 },
                 {
                     'contentType': 'application/vnd.microsoft.card.adaptive'
@@ -1149,6 +1145,10 @@ describe 'MicrosoftTeamsMiddleware', ->
                             }
                         ]
                     }
+                },
+                {
+                    contentType: 'image'
+                    url: 'another-image-url'
                 }
             ]
 

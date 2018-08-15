@@ -156,18 +156,19 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                 # If the stored message doesn't have an adaptive card, just append the new
                 # attachments
                 if storedCard == null
-                    storedMessage.attachments.push.apply(newMessage.attachments)
-
-                for attachment in newMessage.attachments
-                    # If it's not an adaptive card, just append it, otherwise
-                    # combine the cards
-                    if attachment.contentType != "application/vnd.microsoft.card.adaptive"
+                    for attachment in newMessage.attachments
                         storedMessage.attachments.push(attachment)
-                    else
-                        storedCard = HubotResponseCards.appendCardBody(storedCard, \
-                                                                            attachment)
-                        storedCard = HubotResponseCards.appendCardActions(storedCard, \
-                                                                            attachment)
+                else
+                    for attachment in newMessage.attachments
+                        # If it's not an adaptive card, just append it, otherwise
+                        # combine the cards
+                        if attachment.contentType != "application/vnd.microsoft.card.adaptive"
+                            storedMessage.attachments.push(attachment)
+                        else
+                            storedCard = HubotResponseCards.appendCardBody(storedCard, \
+                                                                                attachment)
+                            storedCard = HubotResponseCards.appendCardActions(storedCard, \
+                                                                                attachment)
 
     # Constructs a text message response to indicate an error to the user in the
     # message channel they are using
