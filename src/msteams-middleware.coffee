@@ -141,7 +141,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             if storedMessage.text != undefined
                 storedMessage.text = "#{storedMessage.text}\r\n#{newMessage.text}"
             else
-                storedMessage.text = newPayload.text
+                storedMessage.text = newMessage.text
 
         # Combine attachments, if needed
         if newMessage.attachments != undefined
@@ -176,18 +176,14 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             authorizedUsers = @robot.brain.get("authorizedUsers")
             for userKey, isAdmin of authorizedUsers
                 if isAdmin
-                    text = """#{text}
-                            #{userKey}"""
-        typing =
-            type: 'typing'
-            address: activity?.address
+                    text = "#{text}\r\n- #{userKey}"
 
         payload =
             type: 'message'
             text: "#{text}"
             address: activity?.address
 
-        return [typing, payload]
+        return packagePayload(activity, payload)
 
     # Constructs a response containing a card for user input if needed or null
     # if user input is not needed
@@ -200,14 +196,14 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         if card is null
             return null
 
-        response =
+        message =
             type: 'message'
             address: event?.address
             attachments: [
                 card
             ]
 
-        return response
+        return packagePayload(event, message)
 
     #############################################################################
     # Helper methods for generating richer messages
@@ -415,6 +411,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             if attachment.contentType == "application/vnd.microsoft.card.adaptive"
                 card = attachment
         return card
+    
+    packagePayload = (activity, message) ->
+        typing =
+            type: 'typing'
+            address: activity?.address
+        return [typing, message]
 
 
 registerMiddleware 'msteams', MicrosoftTeamsMiddleware

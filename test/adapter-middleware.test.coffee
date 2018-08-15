@@ -191,7 +191,7 @@ describe 'TextMiddleware', ->
             expect(middleware.supportsAuth()).to.be.false
     
     describe 'constructErrorResponse', ->
-        it 'return generic message when appropriate type is not found', ->
+        it 'return a proper payload with the text of the error', ->
             # Setup
             robot = new MockRobot
             middleware = new TextMiddleware(robot)

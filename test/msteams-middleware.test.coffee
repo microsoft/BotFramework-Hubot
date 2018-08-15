@@ -792,7 +792,6 @@ describe 'MicrosoftTeamsMiddleware', ->
                 },
                 {
                     type: 'message'
-                    text: 'this is some stored text'
                     address:
                         id: 'address-id'
                         channelId: 'channel-id'
@@ -812,7 +811,6 @@ describe 'MicrosoftTeamsMiddleware', ->
                             field: 'some entity'
                         }
                     ]
-                    attachments: []
                 }
             ]
             newPayload = [
@@ -835,7 +833,6 @@ describe 'MicrosoftTeamsMiddleware', ->
                 },
                 {
                     type: 'message'
-                    text: 'new payload'
                     address:
                         id: 'address-id'
                         channelId: 'channel-id'
@@ -854,13 +851,6 @@ describe 'MicrosoftTeamsMiddleware', ->
                         {
                             field: 'another entitiy'
                         }
-                    ]
-                    attachments: [
-                        {
-                            contentType: 'image'
-                            imageURL: 'some-image-url'
-                        },
-
                     ]
                 }
             ]
@@ -884,7 +874,6 @@ describe 'MicrosoftTeamsMiddleware', ->
                 },
                 {
                     type: 'message'
-                    text: 'this is some stored text'
                     address:
                         id: 'address-id'
                         channelId: 'channel-id'
@@ -904,41 +893,459 @@ describe 'MicrosoftTeamsMiddleware', ->
                             field: 'some entity'
                         }
                     ]
-                    attachments: []
                 }
             ]
 
-        # combine text
-        # - both texts are undefined, stored payload should be unchanged
-        # - new payload text is undefined, stored payload should be unchanged
-        # - stored paylaod text is undefined, result text should equal new payload text
-        # - both defined, combine separated by \r\n markdown
+        it 'should not change stored payload text when both stored and new payload text is undefined', ->
+            # Setup
 
-        # combine attachments
-        # combine stored and new adaptive card attachments
-        # it '' ->
-        #     newAdaptiveCard = {
-        #         contentType: 'application/vnd.microsoft.card.adaptive'
-        #         imageURL: 'some-image-url'
-        #     }
+            # Action
+            expect(() ->
+                teamsMiddleware.combineResponses(storedPayload, newPayload)
+            ).to.not.throw()
 
-    
-    # describe 'constructErrorResponse', ->
-    #     beforeEach ->
+            # Assert
+            expect(storedPayload).to.deep.equal(expected)
 
-    #     it 'should return true', ->
-    #         # Setup
+        it 'should not change stored payload text when new payload text is undefined', ->
+            # Setup
+            storedPayload[1].text = 'this is some stored text'
+            expected[1].text = 'this is some stored text'
+
+            # Action
+            expect(() ->
+                teamsMiddleware.combineResponses(storedPayload, newPayload)
+            ).to.not.throw()
+
+            # Assert
+            expect(storedPayload).to.deep.equal(expected)
+
+        it 'should add new payload text when stored payload text is undefined', ->
+            # Setup
+            newPayload[1].text = 'new payload'
+            expected[1].text = 'new payload'
+
+            # Action
+            expect(() ->
+                teamsMiddleware.combineResponses(storedPayload, newPayload)
+            ).to.not.throw()
+
+            # Assert
+            expect(storedPayload).to.deep.equal(expected)
+
+        it 'should combine both payload texts when both have text', ->
+            # Setup
+            storedPayload[1].text = 'this is some stored text'
+            newPayload[1].text = 'new payload'
+            expected[1].text = "this is some stored text\r\nnew payload"
+
+            # Action
+            expect(() ->
+                teamsMiddleware.combineResponses(storedPayload, newPayload)
+            ).to.not.throw()
+
+            # Assert
+            expect(storedPayload).to.deep.equal(expected)
+
+        it 'should not change stored payload attachments when both stored and new don\'t have attachments', ->
+            # Setup
+
+            # Action
+            expect(() ->
+                teamsMiddleware.combineResponses(storedPayload, newPayload)
+            ).to.not.throw()
+
+            # Assert
+            expect(storedPayload).to.deep.equal(expected)
+
+        it 'should not change stored payload attachments when new doesn\'t have attachments', ->
+            # Setup
+            storedPayload.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'some-image-url'
+                }
+            ]
+            expected.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'some-image-url'
+                }
+            ]
+
+            # Action
+            expect(() ->
+                teamsMiddleware.combineResponses(storedPayload, newPayload)
+            ).to.not.throw()
+
+            # Assert
+            expect(storedPayload).to.deep.equal(expected)
+
+        # stored doesn't have, set stored to equal new attachments
+        it 'should add all attachments to stored when stored doesn\'t have attachments and new does', ->
+            # Setup
+            newPayload.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'some-image-url'
+                }
+            ]
+            expected.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'some-image-url'
+                }
+            ]
+
+            # Action
+            expect(() ->
+                teamsMiddleware.combineResponses(storedPayload, newPayload)
+            ).to.not.throw()
+
+            # Assert
+            expect(storedPayload).to.deep.equal(expected)
+
+        # both have but stored doesn't have adaptive card, append new attachments
+        # stored doesn't have, set stored to equal new attachments
+        it 'should append all new attachments when stored doesn\'t have adaptive card attachment', ->
+            # Setup
+            storedPayload.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'some-image-url'
+                }
+            ]
+            newPayload.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'another-image-url'
+                },
+                {
+                    'contentType': 'application/vnd.microsoft.card.adaptive'
+                    'content': {
+                        "type": "AdaptiveCard"
+                        "version": "1.0"
+                        "body": [
+                            {
+                                'type': 'TextBlock'
+                                'text': "Some text"
+                                'speak': "<s>Some text</s>"
+                                'weight': 'bolder'
+                                'size': 'large'
+                            }
+                        ]
+                    }
+                }
+            ]
+            expected.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'some-image-url'
+                },
+                {
+                    contentType: 'image'
+                    url: 'another-image-url'
+                },
+                {
+                    'contentType': 'application/vnd.microsoft.card.adaptive'
+                    'content': {
+                        "type": "AdaptiveCard"
+                        "version": "1.0"
+                        "body": [
+                            {
+                                'type': 'TextBlock'
+                                'text': "Some text"
+                                'speak': "<s>Some text</s>"
+                                'weight': 'bolder'
+                                'size': 'large'
+                            }
+                        ]
+                    }
+                }
+            ]
+
+            # Action
+            expect(() ->
+                teamsMiddleware.combineResponses(storedPayload, newPayload)
+            ).to.not.throw()
+
+            # Assert
+            expect(storedPayload).to.deep.equal(expected)
+
+        it 'should combine attachments correctly so there is only one adaptive card attachment in the end', ->
+            # Setup
+            storedPayload.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'some-image-url'
+                },
+                {
+                    'contentType': 'application/vnd.microsoft.card.adaptive'
+                    'content': {
+                        "type": "AdaptiveCard"
+                        "version": "1.0"
+                        "body": [
+                            {
+                                'type': 'TextBlock'
+                                'text': "Some text"
+                                'speak': "<s>Some text</s>"
+                                'weight': 'bolder'
+                                'size': 'large'
+                            }
+                        ]
+                    }
+                }
+            ]
+            newPayload.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'another-image-url'
+                },
+                {
+                    'contentType': 'application/vnd.microsoft.card.adaptive'
+                    'content': {
+                        "type": "AdaptiveCard"
+                        "version": "1.0"
+                        "body": [
+                            {
+                                'type': 'TextBlock'
+                                'text': "Some more text"
+                                'speak': "<s>Some more text</s>"
+                                'weight': 'bolder'
+                                'size': 'large'
+                            }
+                        ]
+                    }
+                }
+            ]
+            expected.attachments = [
+                {
+                    contentType: 'image'
+                    url: 'some-image-url'
+                },
+                {
+                    contentType: 'image'
+                    url: 'another-image-url'
+                },
+                {
+                    'contentType': 'application/vnd.microsoft.card.adaptive'
+                    'content': {
+                        "type": "AdaptiveCard"
+                        "version": "1.0"
+                        "body": [
+                            {
+                                'type': 'TextBlock'
+                                'text': "Some text"
+                                'speak': "<s>Some text</s>"
+                                'weight': 'bolder'
+                                'size': 'large'
+                            },
+                            {
+                                'type': 'TextBlock'
+                                'text': "Some more text"
+                                'speak': "<s>Some more text</s>"
+                                'weight': 'bolder'
+                                'size': 'large'
+                            }
+                        ]
+                    }
+                }
+            ]
+
+            # Action
+            expect(() ->
+                teamsMiddleware.combineResponses(storedPayload, newPayload)
+            ).to.not.throw()
+
+            # Assert
+            expect(storedPayload).to.deep.equal(expected)
+
+    describe 'constructErrorResponse', ->
+        robot = null
+        teamsMiddleware = null
+        activity = null
+        text = null
+        appendAdmins = false
+        expected = null
+
+        beforeEach ->
+            robot = new MockRobot
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            activity =
+                address:
+                    addressField: "a value"
+                    anotherProperty: "something else"
+            text = "This text will be displayed to the user"
+            appendAdmins = false
+            expected = [
+                {
+                    type: 'typing'
+                    address:
+                        addressField: "a value"
+                        anotherProperty: "something else"
+                },
+                {
+                    type: 'message'
+                    text: "#{text}"
+                    address:
+                        addressField: "a value"
+                        anotherProperty: "something else"
+                }
+            ]
+
+        it 'should return a proper payload with the error text', ->
+            # Setup
             
-    #         # Action
+            # Action
+            payload = null
+            expect(() ->
+                payload = teamsMiddleware.constructErrorResponse(activity, text, appendAdmins)
+            ).to.not.throw()
 
-    #         # Assert
+            # Assert
+            expect(payload).to.deep.equal(expected)
+
+        it 'should include admins in the payload message text when requested', ->
+            # Setup
+            appendAdmins = true
+            robot.brain.set("authorizedUsers", {
+                "user0@some.upn": false
+                "user1@website.place": true
+                "user2@someother.upn": false
+                "user3@another.site": true
+            })
+            expected[1].text = "#{expected[1].text}\r\n- user1@website.place\r\n- user3@another.site"
+
+            # Action
+            payload = null
+            expect(() ->
+                payload = teamsMiddleware.constructErrorResponse(activity, text, appendAdmins)
+            ).to.not.throw()
+
+            # Assert
+            expect(payload).to.deep.equal(expected)
     
-    # describe 'maybeConstructUserInputPrompt', ->
-    #     beforeEach ->
+    describe 'maybeConstructUserInputPrompt', ->
+        robot = null
+        teamsMiddleware = null
+        event = null
+        expected = null
+        beforeEach ->
+            robot = new MockRobot
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            event =
+                value:
+                    hubotMessage: 'hubot gho delete team <team name>'
+                address:
+                        id: 'address-id'
+                        channelId: 'channel-id'
+                        user:
+                            id: 'user-id'
+                            name: 'user-name'
+                            aadObjectId: 'user-aadobject-id'
+                        conversation:
+                            conversationType: 'personal'
+                            id: 'conversation-id'
+                        bot:
+                            id: 'bot-id'
+                            name: 'bot-name'
+                        serviceUrl: 'service-url'
+            expected = [
+                {
+                    type: 'typing'
+                    address:
+                        id: 'address-id'
+                        channelId: 'channel-id'
+                        user:
+                            id: 'user-id'
+                            name: 'user-name'
+                            aadObjectId: 'user-aadobject-id'
+                        conversation:
+                            conversationType: 'personal'
+                            id: 'conversation-id'
+                        bot:
+                            id: 'bot-id'
+                            name: 'bot-name'
+                        serviceUrl: 'service-url'
+                },
+                {
+                    type: 'message'
+                    address:
+                        id: 'address-id'
+                        channelId: 'channel-id'
+                        user:
+                            id: 'user-id'
+                            name: 'user-name'
+                            aadObjectId: 'user-aadobject-id'
+                        conversation:
+                            conversationType: 'personal'
+                            id: 'conversation-id'
+                        bot:
+                            id: 'bot-id'
+                            name: 'bot-name'
+                        serviceUrl: 'service-url'
+                    attachments: [
+                        {
+                            'contentType': 'application/vnd.microsoft.card.adaptive'
+                            'content': {
+                                "type": "AdaptiveCard"
+                                "version": "1.0"
+                                "body": [
+                                    {
+                                        'type': 'TextBlock'
+                                        'text': "gho delete team"
+                                        'speak': "<s>gho delete team</s>"
+                                        'weight': 'bolder'
+                                        'size': 'large'
+                                    },
+                                    {
+                                        'type': 'TextBlock'
+                                        'text': "What is the name of the team to delete? (Max 1024 characters)"
+                                        'speak': "<s>What is the name of the team to delete? (Max 1024 characters)</s>"
+                                    },
+                                    {
+                                        'type': 'Input.Text'
+                                        'id': "gho delete team <team name> - input0"
+                                        'speak': "<s>What is the name of the team to delete? (Max 1024 characters)</s>"
+                                        'wrap': true
+                                        'style': 'text'
+                                        'maxLength': 1024
+                                    }
+                                ]
+                                "actions": [
+                                    {
+                                        'type': 'Action.Submit'
+                                        'title': 'Submit'
+                                        'speak': '<s>Submit</s>'
+                                        'data': {
+                                            'queryPrefix': 'gho delete team <team name>'
+                                            'gho delete team <team name> - query0': 'hubot gho delete team '
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
 
-    #     it 'should return true', ->
-    #         # Setup
+        # Should construct a payload containing a user input card for specific queries
+        it 'should construct payload containing user input card for specific queries', ->
+            # Setup
             
-    #         # Action
+            # Action
+            result = null
+            expect(() ->
+                result = teamsMiddleware.maybeConstructUserInputPrompt(event)
+            ).to.not.throw()
 
-    #         # Assert
+            # Assert
+            expect(result).to.deep.equal(expected)
+
+        # Should return null for queries other than those that should return a payload
+        it 'should return null for queries that don\'t need an input card', ->
+            # Setup
+            event.value.hubotMessage = 'hubot gho'
+            
+            # Action and Assert
+            expect(teamsMiddleware.maybeConstructUserInputPrompt(event)).to.be.null

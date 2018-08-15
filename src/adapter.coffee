@@ -145,7 +145,6 @@ class BotFrameworkAdapter extends Adapter
     sendPayload: (robot, payload) ->
         if !Array.isArray(payload)
             payload = [payload]
-        console.log(JSON.stringify(payload, null, 2))
         robot.adapter.connector.send payload, (err, _) ->
             if err
                 throw err
