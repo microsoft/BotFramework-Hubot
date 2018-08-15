@@ -138,7 +138,7 @@ class BotFrameworkAdapter extends Adapter
             if @robot.brain.get("justReceivedResponse") is null
                 @robot.brain.set("teamsResponse", payload)
                 @robot.brain.set("justReceivedResponse", true)
-                setTimeout(@sendPayload, 500, @robot, @robot.brain.get("teamsResponse"))
+                setTimeout(@sendPayload, 200, @robot, @robot.brain.get("teamsResponse"))
             else
                 middleware.combineResponses(@robot.brain.get("teamsResponse"), payload)
 
