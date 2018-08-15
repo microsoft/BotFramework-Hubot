@@ -87,8 +87,8 @@ class BotFrameworkAdapter extends Adapter
             # Return an error to the user if the message channel doesn't support authorization
             # and authorization is enabled
             if @enableAuth == 'true'
-                @robot.logger.info "#{LogPrefix} Authorization isn\'t supported for the channel"
-                text = "Authorization isn't supported for the channel"
+                @robot.logger.info "#{LogPrefix} Authorization isn\'t supported for the channel error"
+                text = "Authorization isn't supported for this channel"
                 payload = middleware.constructErrorResponse(activity, text)
                 @sendPayload(@robot, payload)
                 return

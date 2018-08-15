@@ -62,7 +62,7 @@ describe 'Main Adapter', ->
                 'authorized_user@email.la': true
             }
     
-    describe 'Test Authorization Support for Teams Channel', ->
+    describe 'Test Authorization Not Suppported Error', ->
         robot = null
         adapter = null
         event = null
@@ -71,9 +71,13 @@ describe 'Main Adapter', ->
             process.env.BOTBUILDER_APP_ID = 'botbuilder-app-id'
             process.env.BOTBUILDER_APP_PASSWORD = 'botbuilder-app-password'
             process.env.HUBOT_TEAMS_ENABLE_AUTH = 'true'
+
             robot = new MockRobot
             adapter = BotFrameworkAdapter.use(robot)
             robot.adapter = adapter
+            adapter.connector.send = (payload, cb) ->
+                robot.brain.set("payload", payload)
+
             event =
                 type: 'message'
                 text: '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> about it'
@@ -118,31 +122,8 @@ describe 'Main Adapter', ->
             ).to.not.throw()
 
             # Assert
-            result = robot.brain.get("event")
-            expect(result.text).to.eql "hubot return source authorization not supported error"
-
-        it 'should work when authorization is enabled and message is from Teams', ->
-            # Setup
-
-            # Action
-            expect(() ->
-                adapter.handleActivity(event)
-            ).to.not.throw()
-
-            # Assert
-            result = robot.brain.get("event")
-
-        it 'should work when message is from invoke', ->
-            # Setup
-            event.type = 'invoke'
-            event.value =
-                hubotMessage: 'hubot do something'
-            delete event.text
-
-            # Action
-            expect(() ->
-                adapter.sendTextToHubot(event)
-            ).to.not.throw()
-
-            # Assert
+            result = robot.brain.get("payload")
+            expect(result).to.be.a('Array')
+            expect(result.length).to.eql 1
+            expect(result[0].text).to.eql "Authorization isn't supported for this channel"
             

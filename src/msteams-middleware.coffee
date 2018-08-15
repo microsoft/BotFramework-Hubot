@@ -63,7 +63,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         teamsConnector.fetchMembers activity?.address?.serviceUrl, \
                             activity?.address?.conversation?.id, (err, chatMembers) =>
             if err
-                console.log("YUP AN ERR")
                 return
 
             # Return with unauthorized error as true if auth is enabled and the user who sent
@@ -198,11 +197,9 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         query = event.value.hubotMessage
         # Remove hubot from the beginning of the command if it's there
         query = query.replace("hubot ", "")
-        console.log(query)
 
         card = HubotResponseCards.maybeConstructMenuInputCard(query)
         if card is null
-            console.log("CARD IS NULL")
             return null
 
         response =

@@ -189,3 +189,45 @@ describe 'TextMiddleware', ->
 
             # Action and Assert
             expect(middleware.supportsAuth()).to.be.false
+    
+    describe 'constructErrorResponse', ->
+        it 'return generic message when appropriate type is not found', ->
+            # Setup
+            robot = new MockRobot
+            middleware = new TextMiddleware(robot)
+            event =
+                type: 'message'
+                text: 'Bot do something and tell User about it'
+                agent: 'tests'
+                source: '*'
+                address:
+                    conversation:
+                        id: "conversation-id"
+                    bot:
+                        id: "bot-id"
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+
+            # Action
+            result = null
+            expect(() ->
+                result = middleware.constructErrorResponse(event, "an error message")
+            ).to.not.throw()
+
+            # Assert
+            expect(result).to.eql {
+                type: 'message'
+                text: 'an error message'
+                address:
+                    conversation:
+                            id: "conversation-id"
+                        bot:
+                            id: "bot-id"
+                        user:
+                            id: "user-id"
+                            name: "user-name"
+            }
+            
+
+        

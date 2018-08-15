@@ -62,9 +62,7 @@ maybeConstructMenuInputCard = (query) ->
             'data': data
         }
     ]
-
     return card
-
 
 # Initializes card structure
 initializeAdaptiveCard = (query) ->
@@ -212,8 +210,12 @@ getFollowUpButtons = (query, regex) ->
     return actions
 
 # Appends the card body of card2 to card1, skipping
-# duplicate card body blocks, and returns card1
+# duplicate card body blocks, and returns card1. In the
+# case that both card bodies are undefined
 appendCardBody = (card1, card2) ->
+    if card2.content.body is undefined
+        return card1
+
     if card1.content.body is undefined
         card1.content.body = card2.content.body
         return card1
@@ -232,6 +234,9 @@ appendCardBody = (card1, card2) ->
 # Appends the card actions of card2 to those of card1, skipping
 # actions which card1 already contains
 appendCardActions = (card1, card2) ->
+    if card2.content.actions is undefined
+        return card1
+
     if card1.content.actions is undefined
         card1.content.actions = card2.content.actions
         return card1
@@ -246,7 +251,6 @@ appendCardActions = (card1, card2) ->
         # if not in storedActions, add it
         if not hasAction
             card1.content.actions.push(newAction)
-
     return card1
 
 # Helper method to create a short version of the command by including only the
