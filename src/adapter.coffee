@@ -37,7 +37,7 @@ class BotFrameworkAdapter extends Adapter
                     robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
                     authorizedUsers = {}
                     for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
-                        authorizedUsers[admin] = true
+                        authorizedUsers[admin.toLowerCase()] = true
                     robot.brain.set("authorizedUsers", authorizedUsers)
             else
                 throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required for authorization")
@@ -75,6 +75,7 @@ class BotFrameworkAdapter extends Adapter
         @handleActivity activity for activity in activities
 
     handleActivity: (activity) ->
+        console.log(activity)
         @robot.logger.info "#{LogPrefix} Handling activity Channel:
                             #{activity.source}; type: #{activity.type}"
 

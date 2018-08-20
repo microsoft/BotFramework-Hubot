@@ -69,8 +69,9 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             # the message is not authorized
             if authEnabled
                 authorizedUsers = @robot.brain.get("authorizedUsers")
-                senderUPN = getSenderUPN(user, chatMembers)
-
+                senderUPN = getSenderUPN(user, chatMembers).toLowerCase()
+                console.log(senderUPN)
+                console.log(authorizedUsers)
                 if senderUPN is undefined or authorizedUsers[senderUPN] is undefined
                     @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
                     unauthorizedError = true
