@@ -43,9 +43,9 @@ Optional:
 
 # Optional Authorization for Microsoft Teams:
 
-**NOTE:** The UPNs used for authorization are stored in the hubot brain, so brain persistence affects the `HUBOT_TEAMS_INITIAL_ADMINS` variable as described below.
+**NOTE:** The UPNs used for authorization are stored in the hubot brain, so brain persistence affects the use of `HUBOT_TEAMS_INITIAL_ADMINS` as described below.
 
-Authorization restricts the users that can send commands to hubot to a specifically defined set of Microsoft Teams users. Authorization is currently only supported for the Teams channel, so when enabled, messages from all other channels are blocked. To maximize back compatability, authorization is disabled by default and must be enabled to be used.
+Authorization restricts the users that can send commands to hubot to a defined set of Microsoft Teams users. Authorization is currently only supported for the Teams channel, so when enabled, messages from all other channels are blocked. To maximize back compatibility, authorization is disabled by default and must be enabled to be used.
 
 ### Configuring authorization
 Authorization is set up using the `HUBOT_TEAMS_ENABLE_AUTH` and `HUBOT_TEAMS_INITIAL_ADMINS` environment variables.
@@ -56,29 +56,30 @@ Authorization is set up using the `HUBOT_TEAMS_ENABLE_AUTH` and `HUBOT_TEAMS_INI
 
     - If your hubot brain is persistent, to change the list of authorized users, first delete the stored list of authorized users from your hubot's brain then change `HUBOT_TEAMS_INITIAL_ADMINS` to the new list. Also consider using the [hubot-msteams](https://github.com/jayongg/TeamsHubot) script package to dynamically control authorizations.
 
-    - If your hubot brain isn't persistent, this list will be used to set admins every time hubot is restarted.
+    - If your hubot brain isn't persistent, the `HUBOT_TEAMS_INITIAL_ADMINS` list will be used to set admins every time hubot is restarted.
 
 # Card-based Interactions for Microsoft Teams
 
 **Add screenshots (create an images folder to store them in)**
 
-Hubot is great, but hubot without needing to type in whole commands and with less typos is even better :D. Card-based interactions wrap hubot responses into cards and provide buttons containing useful follow-up commands on the card. To run a follow-up command, simply click the button with the command. If user input is needed, another card is shown with fields for input, and the rest of the command is constructed for you.
+Hubot is great, but hubot without needing to type in whole commands and with less typos is even better. Card-based interactions wrap hubot responses into cards and provide buttons on the card containing useful follow-up commands. To run a follow-up command, simply click the button with the command. If user input is needed, another card is shown with fields for input, and the rest of the command is constructed for you.
 
-### Generating cards
-generate cards containing buttons with follow-up hubot commands
-
-based on what follow-up hubot commands make sense for a command that was just run. 
+Currently, card based interactions are supported for the [hubot-github](https://github.com/hydal/hubot-github) package.
 
 ### Defining new card-based interactions
 
+Adding new card-based interactions has two steps:
 
+1. Add entries to HubotResponseCards located in `src/hubot-response-cards.coffee`. Each entry is from a regex to an array of follow up commands.
+    * The regex should map to the command that you want to generate a card for with wildcards for the hubot's name and regexes for each user input. See the `hubot-github` entries for examples.
+    * The follow up queries should match the key for the follow up command in HubotQueryParts.
 
-
-For menu cards used to initiate card-based interactions for any command in a script library, use the [hubot-msteams](https://github.com/jayongg/TeamsHubot) library.
-
-
-
-
+2. Add entries to HubotQueryParts located in `src/hubot-query-parts.coffee`. Each entry is from the command to two arrays containing the text and input parts of a command. These arrays are used to construct the query with any user inputs to send to hubot.
+    * textParts contains the text surrounding any user inputs, if a command has no user input, it contains one string in textParts. Note that the first entry of textParts starts with 'hubot'
+    * inputParts contains representations of each user input in a command, if any. The text is used to prompt the user for input.
+    A special syntax can used for inputs with finite choices to create a dropdown selector. In this case, a / is used followed by the choices separated by the word " or ". See the `hubot-github` entries for examples.
+    
+Once these entries have been added, cards with follow up commands will be generated for the commands added to HubotResponseCards. For menu cards used to initiate card-based interactions for any command in a script library, use the [hubot-msteams](https://github.com/jayongg/TeamsHubot) library.
 
 # Contributing
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comm
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments
