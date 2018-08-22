@@ -26,8 +26,6 @@ class BotFrameworkAdapter extends Adapter
         @appPassword = process.env.BOTBUILDER_APP_PASSWORD
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
         @enableAuth = false
-        console.log(process.env.HUBOT_TEAMS_ENABLE_AUTH?)
-        console.log(process.env.HUBOT_TEAMS_ENABLE_AUTH == 'true')
         if process.env.HUBOT_TEAMS_ENABLE_AUTH? and process.env.HUBOT_TEAMS_ENABLE_AUTH == 'true'
             @enableAuth = true
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
@@ -81,7 +79,7 @@ class BotFrameworkAdapter extends Adapter
     handleActivity: (activity) ->
         @robot.logger.info "#{LogPrefix} Handling activity Channel:
                             #{activity.source}; type: #{activity.type}"
-        console.log(activity)
+
         # Construct the middleware
         middleware = @using(activity.source)
 
