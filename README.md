@@ -14,7 +14,7 @@ You can then interact with your hubot through any Bot Framework supported channe
 
 ### Additional Steps to Use Hubot in [Microsoft Teams](https://products.office.com/en-US/microsoft-teams/)
 
-4. Create a Microsoft Teams app package (.zip) to upload in Teams. We recommend using the manifest editor in [Teams App Studio](https://docs.microsoft.com/en-us/microsoftteams/platform/get-started/get-started-app-studio). Include the bot's app id and password in the bots section.
+4. Create a Microsoft Teams app package (.zip) to upload in Teams. We recommend using the manifest editor in [App Studio for Microsoft Teams](https://docs.microsoft.com/en-us/microsoftteams/platform/get-started/get-started-app-studio). Include the bot's app id and password in the bots section.
 
 5. In Microsoft Teams, navigate to the Store and select `Upload a custom app`. Select the zipped Teams App Package, and install the bot for personal and/or team use.
 

@@ -70,12 +70,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             if authEnabled
                 authorizedUsers = @robot.brain.get("authorizedUsers")
                 senderUPN = getSenderUPN(user, chatMembers).toLowerCase()
-                console.log(senderUPN)
-                console.log(authorizedUsers)
                 if senderUPN is undefined or authorizedUsers[senderUPN] is undefined
                     @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
-                    unauthorizedError = true
-                    cb(null, true)
+                    text = "You are not authorized to send commands to hubot.
+                            To gain access, talk to your admins:"
+                    errorResponse = @constructErrorResponse(activity, text, true)
+                    cb(null, errorResponse)
                     return
 
                 # Add the sender's UPN to user
@@ -83,12 +83,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
             # Return a generic message if the activity isn't a message or invoke
             if activity.type != 'message' && activity.type != 'invoke'
-                cb(new Message(user), false)
+                cb(new Message(user), null)
                 return
 
             activity = fixActivityForHubot(activity, @robot, chatMembers)
             message = new TextMessage(user, activity.text, activity.address.id)
-            cb(message, false)
+            cb(message, null)
 
     toSendable: (context, message) ->
         @robot.logger.info "#{LogPrefix} toSendable"
