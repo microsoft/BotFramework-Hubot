@@ -25,11 +25,15 @@ class BotFrameworkAdapter extends Adapter
         @appId = process.env.BOTBUILDER_APP_ID
         @appPassword = process.env.BOTBUILDER_APP_PASSWORD
         @endpoint = process.env.BOTBUILDER_ENDPOINT || "/api/messages"
-        @enableAuth = process.env.HUBOT_TEAMS_ENABLE_AUTH || 'false'
+        @enableAuth = false
+        console.log(process.env.HUBOT_TEAMS_ENABLE_AUTH?)
+        console.log(process.env.HUBOT_TEAMS_ENABLE_AUTH == 'true')
+        if process.env.HUBOT_TEAMS_ENABLE_AUTH? and process.env.HUBOT_TEAMS_ENABLE_AUTH == 'true'
+            @enableAuth = true
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
         # Initial Admins should be required when auth is enabled
-        if @enableAuth == 'true'
+        if @enableAuth
             if process.env.HUBOT_TEAMS_INITIAL_ADMINS
                 # If there isn't a list of authorized users in the brain, populate
                 # it with admins from the environment variable
@@ -75,10 +79,9 @@ class BotFrameworkAdapter extends Adapter
         @handleActivity activity for activity in activities
 
     handleActivity: (activity) ->
-        console.log(activity)
         @robot.logger.info "#{LogPrefix} Handling activity Channel:
                             #{activity.source}; type: #{activity.type}"
-
+        console.log(activity)
         # Construct the middleware
         middleware = @using(activity.source)
 
@@ -87,7 +90,7 @@ class BotFrameworkAdapter extends Adapter
         if not middleware.supportsAuth()
             # Return an error to the user if the message channel doesn't support authorization
             # and authorization is enabled
-            if @enableAuth == 'true'
+            if @enableAuth
                 @robot.logger.info "#{LogPrefix} Authorization isn\'t supported for the channel error"
                 text = "Authorization isn't supported for this channel"
                 payload = middleware.constructErrorResponse(activity, text)
@@ -102,18 +105,11 @@ class BotFrameworkAdapter extends Adapter
                 appId: @robot.adapter.appId
                 appPassword: @robot.adapter.appPassword
             }
-            middleware.toReceivable activity, teamsConnector, @enableAuth == 'true', \
-                                    (event, unauthorizedError) =>
-                # Send an unauthorized error response to the user if an error occurred
-                if unauthorizedError
-                    @robot.logger.info "#{LogPrefix} Unauthorized user, sending error"
-                    text = "You are not authorized to send commands to hubot.
-                            To gain access, talk to your admins:"
-                    payload = middleware.constructErrorResponse(activity, text, true)
-                    @sendPayload(@robot, payload)
-                    return
-
-                if event?
+            middleware.toReceivable activity, teamsConnector, @enableAuth, \
+                                    (event, response) =>
+                if response?
+                     @sendPayload(@robot, response)
+                else if event?
                     @robot.receive event
 
     send: (context, messages...) ->

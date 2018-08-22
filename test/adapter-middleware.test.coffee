@@ -228,6 +228,3 @@ describe 'TextMiddleware', ->
                             id: "user-id"
                             name: "user-name"
             }
-            
-
-        

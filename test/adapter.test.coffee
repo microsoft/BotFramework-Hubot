@@ -126,4 +126,3 @@ describe 'Main Adapter', ->
             expect(result).to.be.a('Array')
             expect(result.length).to.eql 1
             expect(result[0].text).to.eql "Authorization isn't supported for this channel"
-            
