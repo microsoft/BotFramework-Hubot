@@ -24,8 +24,8 @@ describe 'MicrosoftTeamsMiddleware', ->
             }
             teamsChatConnector = new MockTeamsChatConnector(options)
 
-            cb = (event, unauthorizedError) ->
-                robot.brain.data["unauthError"] = unauthorizedError
+            cb = (event, response) ->
+                robot.brain.data["errorResponse"] = response
                 robot.receive event
 
             authEnabled = false
@@ -93,7 +93,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             ).to.not.throw()
 
             # Assert
-            expect(robot.brain.get("unauthError")).to.be.false
+            expect(robot.brain.get("errorResponse")).to.be.null
             expect(robot.brain.get("event")).to.be.a('Object')
 
         it 'should return unauthorized error for message when auth is enabled and user isn\'t authorized', ->
@@ -104,6 +104,42 @@ describe 'MicrosoftTeamsMiddleware', ->
             event.address.user.userPrincipalName = 'not@author.ized'
             teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
             authEnabled = true
+            errorText = 'You are not authorized to send commands to hubot. \
+                            To gain access, talk to your admins:\r\n- an-1_2\
+                            0@em.ail'
+            expected = [
+                {
+                    type: 'typing'
+                    address:
+                        conversation:
+                            isGroup: 'true'
+                            conversationType: 'channel'
+                            id: "19:conversation-id"
+                        bot:
+                            id: "bot-id"
+                        user:
+                            id: "user-id"
+                            name: "user-name"
+                            aadObjectId: 'eight888-four-4444-fore-twelve121212'
+                            userPrincipalName: 'not@author.ized'
+                },
+                {
+                    type: 'message'
+                    text: "#{errorText}"
+                    address:
+                        conversation:
+                            isGroup: 'true'
+                            conversationType: 'channel'
+                            id: "19:conversation-id"
+                        bot:
+                            id: "bot-id"
+                        user:
+                            id: "user-id"
+                            name: "user-name"
+                            aadObjectId: 'eight888-four-4444-fore-twelve121212'
+                            userPrincipalName: 'not@author.ized'
+                }
+            ]
 
             # Action
             expect(() ->
@@ -111,7 +147,8 @@ describe 'MicrosoftTeamsMiddleware', ->
             ).to.not.throw()
 
             # Assert
-            expect(robot.brain.get("unauthError")).to.be.true
+            expect(robot.brain.get("errorResponse")).to.eql(expected)
+            expect(robot.brain.get("event")).to.be.null
 
         it 'should allow messages without tenant id when tenant filter is empty', ->
             # Setup
