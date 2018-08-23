@@ -1,28 +1,37 @@
 chai = require 'chai'
 expect = chai.expect
 { TextMessage, Message, User } = require 'hubot'
+rewiremock = require('rewiremock/node').default
 MockRobot = require './mock-robot'
-MockTeamsChatConnector = require './mock-teamschatconnector'
-MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
 BotFrameworkAdapter = require '../src/adapter'
+MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
 
 describe 'MicrosoftTeamsMiddleware', ->
 
     describe 'toReceivable', ->
+        rewiremock('botbuilder-teams').with(require('./mock-teamschatconnector'))
+        BotBuilderTeams = null
+        MicrosoftTeamsMiddleware = null
+
         robot = null
         event = null
+        options = null
         teamsChatConnector = null
         authEnabled = false
         cb = null
 
         beforeEach ->
+            rewiremock.enable()
+            MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
+            BotBuilderTeams = require 'botbuilder-teams'
+
             delete process.env.HUBOT_OFFICE365_TENANT_FILTER
             robot = new MockRobot
             options = {
                 appId: 'botframework-app-id'
                 appPassword: 'botframework-app-password'
             }
-            teamsChatConnector = new MockTeamsChatConnector(options)
+            teamsChatConnector = new BotBuilderTeams.TeamsChatConnector(options)
 
             cb = (event, response) ->
                 robot.brain.data["errorResponse"] = response
@@ -63,6 +72,9 @@ describe 'MicrosoftTeamsMiddleware', ->
                         name: "user-name"
                         aadObjectId: 'eight888-four-4444-fore-twelve121212'
                         userPrincipalName: 'em@ai.l'
+        
+        afterEach ->
+            rewiremock.disable()
 
         it 'should allow messages when auth is not enabled', ->
             # Setup
@@ -71,7 +83,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -80,7 +93,7 @@ describe 'MicrosoftTeamsMiddleware', ->
         
         it 'should allow messages when auth is enabled and user is authorized', ->
             # Setup
-            robot.brain.data["authorizedUsers"] = 
+            robot.brain.data["authorizedUsers"] =
                 'an-1_20@em.ail': true
                 'em@ai.l': false
                 'user-UPN': true
@@ -89,16 +102,18 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
             expect(robot.brain.get("errorResponse")).to.be.null
             expect(robot.brain.get("event")).to.be.a('Object')
 
-        it 'should return unauthorized error for message when auth is enabled and user isn\'t authorized', ->
+        it 'should return unauthorized error for message when auth is enabled and \
+            user isn\'t authorized', ->
             # Setup
-            robot.brain.data["authorizedUsers"] = 
+            robot.brain.data["authorizedUsers"] =
                 'an-1_20@em.ail': true
                 'authorized_user@email.la': false
             event.address.user.userPrincipalName = 'not@author.ized'
@@ -143,7 +158,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -157,7 +173,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -170,7 +187,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -184,7 +202,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -199,7 +218,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -213,7 +233,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -238,7 +259,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -253,7 +275,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -267,7 +290,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -280,18 +304,21 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
             result = robot.brain.get("event")
-            expected = "#{robot.name} do something #{robot.name} and tell #{event.address.user.userPrincipalName} about it"
+            expected = "#{robot.name} do something #{robot.name} and tell \
+                        #{event.address.user.userPrincipalName} about it"
             expect(result.text).to.equal(expected)
         
         it 'should replace all @ mentions to chat users with their user principal name', ->
             # Setup
             teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
-            event.text = '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> and <at>User2</at> about it'
+            event.text = '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> \
+                        and <at>User2</at> about it'
             event.entities.push(
                 type: "mention"
                 text: "<at>User2</at>"
@@ -302,12 +329,14 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
             result = robot.brain.get("event")
-            expected = "#{robot.name} do something #{robot.name} and tell #{event.address.user.userPrincipalName} and em@ai.l2 about it"
+            expected = "#{robot.name} do something #{robot.name} and tell \
+                        #{event.address.user.userPrincipalName} and em@ai.l2 about it"
             expect(result.text).to.equal(expected)
 
         it 'should replace @ mentions even when entities is not an array', ->
@@ -318,7 +347,8 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
@@ -338,28 +368,31 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
             result = robot.brain.get("event")
-            expected = "#{robot.name} do something #{robot.name} and tell #{event.entities[1].mentioned.name} about it"
+            expected = "#{robot.name} do something #{robot.name} and tell \
+                        #{event.entities[1].mentioned.name} about it"
             expect(result.text).to.equal(expected)
 
         it 'should trim whitespace before and after text', ->
             # Setup
             teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
-            event.text = """    
-            #{event.text}      \n   """
+            event.text = "   #{event.text}      \n   "
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
             result = robot.brain.get("event")
-            expected = "#{robot.name} do something #{robot.name} and tell #{event.address.user.userPrincipalName} about it"
+            expected = "#{robot.name} do something #{robot.name} and tell \
+                        #{event.address.user.userPrincipalName} about it"
             expect(result.text).to.equal(expected)
 
         it 'should prepend bot name in 1:1 chats when name is not there', ->
@@ -371,12 +404,14 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, teamsChatConnector, authEnabled, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
+                                            options.appPassword, cb)
             ).to.not.throw()
 
             # Assert
             result = robot.brain.get("event")
-            expected = "#{robot.name} do something #{robot.name} and tell #{event.address.user.userPrincipalName} about it"
+            expected = "#{robot.name} do something #{robot.name} and tell \
+                        #{event.address.user.userPrincipalName} about it"
             expect(result.text).to.equal(expected)
 
     describe 'toSendable', ->

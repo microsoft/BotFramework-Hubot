@@ -1,4 +1,4 @@
-class MockTeamsChatConnector
+class TeamsChatConnector
     constructor: (options) ->
         @appId = options.appId
         @appPassword = options.appPassword
@@ -30,4 +30,9 @@ class MockTeamsChatConnector
     send: (payload) ->
         robot.brain.set("payload", payload)
 
-module.exports = MockTeamsChatConnector
+BotBuilderTeams = {
+    TeamsChatConnector: TeamsChatConnector
+}
+
+# module.exports = TeamsChatConnector
+module.exports = BotBuilderTeams

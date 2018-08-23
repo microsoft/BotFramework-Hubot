@@ -24,7 +24,7 @@
 #	billbliss
 #
 
-BotBuilder = require 'botbuilder'
+BotBuilderTeams = require 'botbuilder-teams'
 HubotResponseCards = require './hubot-response-cards'
 HubotQueryParts = require './hubot-query-parts'
 { Robot, TextMessage, Message, User } = require 'hubot'
@@ -42,7 +42,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             @robot.logger.info("#{LogPrefix} Restricting tenants to \
                                             #{JSON.stringify(@allowedTenants)}")
 
-    toReceivable: (activity, teamsConnector, authEnabled, cb) ->
+    toReceivable: (activity, authEnabled, appId, appPassword, cb) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
         # Drop the activity if it came from an unauthorized tenant
@@ -60,6 +60,10 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         user.room = getRoomId(activity)
 
         # Fetch the roster of members to do authorization based on UPN
+        teamsConnector = new BotBuilderTeams.TeamsChatConnector {
+            appId: appId
+            appPassword: appPassword
+        }
         teamsConnector.fetchMembers activity?.address?.serviceUrl, \
                             activity?.address?.conversation?.id, (err, chatMembers) =>
             if err

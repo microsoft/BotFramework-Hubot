@@ -12,7 +12,6 @@ Util = require 'util'
 Timers = require 'timers'
 
 BotBuilder = require 'botbuilder'
-BotBuilderTeams = require 'botbuilder-teams'
 { Robot, Adapter, TextMessage, User } = require 'hubot'
 Middleware = require './adapter-middleware'
 MicrosoftTeamsMiddleware = require './msteams-middleware'
@@ -89,7 +88,8 @@ class BotFrameworkAdapter extends Adapter
             # Return an error to the user if the message channel doesn't support authorization
             # and authorization is enabled
             if @enableAuth
-                @robot.logger.info "#{LogPrefix} Authorization isn\'t supported for the channel error"
+                @robot.logger.info "#{LogPrefix} Authorization isn\'t supported
+                                     for the channel error"
                 text = "Authorization isn't supported for this channel"
                 payload = middleware.constructErrorResponse(activity, text)
                 @sendPayload(@robot, payload)
@@ -99,11 +99,7 @@ class BotFrameworkAdapter extends Adapter
                 if event?
                     @robot.receive event
         else
-            teamsConnector = new BotBuilderTeams.TeamsChatConnector {
-                appId: @robot.adapter.appId
-                appPassword: @robot.adapter.appPassword
-            }
-            middleware.toReceivable activity, teamsConnector, @enableAuth, \
+            middleware.toReceivable activity, @enableAuth, @appId, @appPassword, \
                                     (event, response) =>
                 if response?
                      @sendPayload(@robot, response)
