@@ -223,11 +223,11 @@ describe 'TextMiddleware', ->
                 address:
                     conversation:
                         id: "conversation-id"
-                        bot:
-                            id: "bot-id"
-                        user:
-                            id: "user-id"
-                            name: "user-name"
+                    bot:
+                        id: "bot-id"
+                    user:
+                        id: "user-id"
+                        name: "user-name"
             }
     
     describe 'send', ->
