@@ -56,6 +56,7 @@ class BotFrameworkAdapter extends Adapter
     # If the command for the invoke doesn't need user input, handle the command
     # normally. If it does need user input, return a prompt for user input.
     menuCardInvoke: (invokeEvent, cb) ->
+        console.log(invokeEvent)
         middleware = @using(invokeEvent.source)
         payload = middleware.maybeConstructUserInputPrompt(invokeEvent)
         if payload == null
@@ -63,7 +64,7 @@ class BotFrameworkAdapter extends Adapter
             delete invokeEvent.value
             @handleActivity(invokeEvent)
         else
-            @sendPayload(@robot, payload)
+            middleware.sendPayload(@robot, @connector, payload)
         return
 
     using: (name) ->

@@ -44,7 +44,7 @@ describe 'HubotResponseCards', ->
             # Action
             card = null
             expect(() ->
-                    card = HubotResponseCards.maybeConstructResponseCard(response, query)
+                card = HubotResponseCards.maybeConstructResponseCard(response, query)
             ).to.not.throw()
 
             # Assert
@@ -251,7 +251,7 @@ describe 'HubotResponseCards', ->
             # Action
             card = null
             expect(() ->
-                    card = HubotResponseCards.maybeConstructResponseCard(response, query)
+                card = HubotResponseCards.maybeConstructResponseCard(response, query)
             ).to.not.throw()
 
             # Assert
