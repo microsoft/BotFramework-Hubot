@@ -42,6 +42,18 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             @robot.logger.info("#{LogPrefix} Restricting tenants to \
                                             #{JSON.stringify(@allowedTenants)}")
 
+    # If the invoke is due to a command that needs user input, sends a user input card
+    # otherwise, returns an event to handle, if needed, or null
+    handleInvoke: (invokeEvent, connector) ->
+        payload = @maybeConstructUserInputPrompt(invokeEvent)
+        if payload != null
+            @sendPayload(connector, payload)
+            return null
+        else
+            invokeEvent.text = invokeEvent.value.hubotMessage
+            delete invokeEvent.value
+            return invokeEvent
+
     toReceivable: (activity, authEnabled, appId, appPassword, cb) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
@@ -68,7 +80,6 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                             activity?.address?.conversation?.id, (err, chatMembers) =>
             if err
                 return
-
             # Return with unauthorized error as true if auth is enabled and the user who sent
             # the message is not authorized
             if authEnabled
@@ -132,6 +143,14 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     supportsAuth: () ->
         return true
 
+    maybeReceive: (activity, connector, authEnabled, appId, appPassword) ->
+        @toReceivable activity, authEnabled, appId, appPassword,
+            (event, response) =>
+                if response?
+                    @send(connector, response)
+                else if event?
+                    @robot.receive event
+
     # Combines payloads then sends the combined payload to MS Teams
     send: (connector, payload) ->
         # The message is from Teams, so combine hubot responses
@@ -140,18 +159,18 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         if @robot.brain.get("justReceivedResponse") is null
             @robot.brain.set("teamsResponse", payload)
             @robot.brain.set("justReceivedResponse", true)
-            setTimeout(@sendPayload, 100, @robot, connector, @robot.brain.get("teamsResponse"))
+            setTimeout(@sendPayload.bind(this), 100, connector, @robot.brain.get("teamsResponse"))
         else
             @combineResponses(@robot.brain.get("teamsResponse"), payload)
 
-    sendPayload: (robot, connector, payload) ->
+    sendPayload: (connector, payload) ->
         if !Array.isArray(payload)
             payload = [payload]
-        connector.send payload, (err, _) ->
+        connector.send payload, (err, _) =>
             if err
                 throw err
-            robot.brain.remove("teamsResponse")
-            robot.brain.remove("justReceivedResponse")
+            @robot.brain.remove("teamsResponse")
+            @robot.brain.remove("justReceivedResponse")
 
     # Combines the text and attachments of multiple hubot messages sent in succession.
     # Most of the first received response is kept, and the text and attachments of

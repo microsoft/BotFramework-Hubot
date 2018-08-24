@@ -26,9 +26,6 @@ class TeamsChatConnector
         ]
 
         callback false, members
-    
-    send: (payload) ->
-        robot.brain.set("payload", payload)
 
 BotBuilderTeams = {
     TeamsChatConnector: TeamsChatConnector

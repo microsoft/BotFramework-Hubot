@@ -27,11 +27,12 @@ class BotFrameworkAdapter extends Adapter
         @enableAuth = false
         if process.env.HUBOT_TEAMS_ENABLE_AUTH? and process.env.HUBOT_TEAMS_ENABLE_AUTH == 'true'
             @enableAuth = true
+        @initialAdmins = process.env.HUBOT_TEAMS_INITIAL_ADMINS
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
         # Initial Admins should be required when auth is enabled
         if @enableAuth
-            if process.env.HUBOT_TEAMS_INITIAL_ADMINS
+            if @initialAdmins?
                 # If there isn't a list of authorized users in the brain, populate
                 # it with admins from the environment variable
                 if robot.brain.get("authorizedUsers") is null
@@ -50,22 +51,25 @@ class BotFrameworkAdapter extends Adapter
 
         @connector.onEvent (events, cb) => @onBotEvents events, cb
 
-        @connector.onInvoke (events, cb) => @menuCardInvoke events, cb
+        @connector.onInvoke (events, cb) => @onInvoke events, cb
 
 
-    # If the command for the invoke doesn't need user input, handle the command
-    # normally. If it does need user input, return a prompt for user input.
-    menuCardInvoke: (invokeEvent, cb) ->
-        console.log(invokeEvent)
+    # Handles the invoke and passes an event to be handled, if needed
+    onInvoke: (invokeEvent, cb) ->
         middleware = @using(invokeEvent.source)
-        payload = middleware.maybeConstructUserInputPrompt(invokeEvent)
-        if payload == null
-            invokeEvent.text = invokeEvent.value.hubotMessage
-            delete invokeEvent.value
-            @handleActivity(invokeEvent)
-        else
-            middleware.sendPayload(@robot, @connector, payload)
-        return
+        event = middleware.handleInvoke(invokeEvent, @connector)
+        if event != null
+            @handleActivity(event)
+        # return
+
+        # payload = middleware.maybeConstructUserInputPrompt(invokeEvent)
+        # if payload == null
+        #     invokeEvent.text = invokeEvent.value.hubotMessage
+        #     delete invokeEvent.value
+        #     @handleActivity(invokeEvent)
+        # else
+        #     middleware.sendPayload(@connector, payload)
+        # return
 
     using: (name) ->
         MiddlewareClass = Middleware.middlewareFor(name)
@@ -88,24 +92,27 @@ class BotFrameworkAdapter extends Adapter
         if not middleware.supportsAuth()
             # Return an error to the user if the message channel doesn't support authorization
             # and authorization is enabled
-            if @enableAuth
-                @robot.logger.info "#{LogPrefix} Authorization isn\'t supported
-                                     for the channel error"
-                text = "Authorization isn't supported for this channel"
-                payload = middleware.constructErrorResponse(activity, text)
-                middleware.send(@robot.adapter.connector, payload)
-                return
-            else
-                event = middleware.toReceivable activity
-                if event?
-                    @robot.receive event
+            # if @enableAuth
+            #     @robot.logger.info "#{LogPrefix} Authorization isn\'t supported
+            #                          for the channel error"
+            #     text = "Authorization isn't supported for this channel"
+            #     payload = middleware.constructErrorResponse(activity, text)
+            #     middleware.send(@connector, payload)
+            #     return
+            # else
+            #     event = middleware.toReceivable activity
+            #     if event?
+            #         @robot.receive event
+            middleware.maybeReceive(activity, @connector, @enableAuth)
         else
-            middleware.toReceivable activity, @enableAuth, @appId, @appPassword, \
-                                    (event, response) =>
-                if response?
-                    middleware.send(@robot.adapter.connector, response)
-                else if event?
-                    @robot.receive event
+            # middleware.toReceivable activity, @enableAuth, @appId, @appPassword, \
+            #                         (event, response) =>
+            #     if response?
+            #         middleware.send(@connector, response)
+            #     else if event?
+            #         @robot.receive event
+            middleware.maybeReceive(activity, @connector, @enableAuth, \
+                                    @appId, @appPassword)
 
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"
@@ -118,7 +125,7 @@ class BotFrameworkAdapter extends Adapter
             activity = context.user.activity
             middleware = @using(activity.source)
             payload = middleware.toSendable(context, msg)
-            middleware.send(@robot.adapter.connector, payload)
+            middleware.send(@connector, payload)
 
     run: ->
         @robot.router.post @endpoint, @connector.listen()

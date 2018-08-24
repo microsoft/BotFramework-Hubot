@@ -77,6 +77,41 @@ describe 'BaseMiddleware', ->
             ).to.throw()
 
 describe 'TextMiddleware', ->
+    describe 'handleInvoke', ->
+        robot = null
+        event = null
+        connector = null
+        beforeEach ->
+            robot = new MockRobot
+            event =
+                type: 'invoke'
+                text: 'Bot do something and tell User about it'
+                agent: 'tests'
+                source: '*'
+                address:
+                    conversation:
+                        id: "conversation-id"
+                    bot:
+                        id: "bot-id"
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+            connector = 
+                send: () -> {}
+
+        it 'should return null', ->
+            # Setup
+            middleware = new TextMiddleware(robot)
+
+            # Action
+            result = null
+            expect(() ->
+                result = middleware.handleInvoke(event, connector)
+            ).to.not.throw()
+
+            # Assert
+            expect(result).to.be.null
+
     describe 'toReceivable', ->
         robot = null
         event = null
@@ -191,6 +226,85 @@ describe 'TextMiddleware', ->
             # Action and Assert
             expect(middleware.supportsAuth()).to.be.false
     
+    describe 'maybeReceive', ->
+        robot = null
+        middleware = null
+        authEnabled = true
+        connector = null
+        event = null
+
+        beforeEach ->
+            robot = new MockRobot
+            middleware = new TextMiddleware(robot)
+            connector =
+                send: (payload, cb) ->
+                    robot.brain.set("payload", payload)
+            authEnabled = true
+            event =
+                type: 'message'
+                text: '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> about it'
+                agent: 'tests'
+                source: 'msteams'
+                entities: [
+                    type: "mention"
+                    text: "<at>Bot</at>"
+                    mentioned:
+                        id: "bot-id"
+                        name: "bot-name"
+                ,
+                    type: "mention"
+                    text: "<at>User</at>"
+                    mentioned:
+                        id: "user-id"
+                        name: "user-name"
+                ]
+                sourceEvent:
+                    tenant:
+                        id: "tenant-id"
+                address:
+                    conversation:
+                        id: "19:conversation-id"
+                    bot:
+                        id: "bot-id"
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: "eight888-four-4444-fore-twelve121212"
+                        userPrincipalName: "user-UPN"
+                    serviceUrl: 'url-serviceUrl/a-url'
+
+        it 'should return authorization not supported error when auth is enabled', ->
+            # Setup
+
+            # Action
+            expect(() ->
+                middleware.maybeReceive(event, connector, authEnabled)
+            ).to.not.throw()
+
+            # Assert
+            resultEvent = robot.brain.get("event")
+            expect(resultEvent).to.be.null
+            resultPayload = robot.brain.get("payload")
+            expect(resultPayload).to.be.a('Array')
+            expect(resultPayload.length).to.eql 1
+            expect(resultPayload[0].text).to.eql "Authorization isn't supported for this channel"
+
+        it 'should work when auth is not enabled', ->
+            # Setup
+            authEnabled = false
+
+            # Action
+            expect(() ->
+                middleware.maybeReceive(event, connector, authEnabled)
+            ).to.not.throw()
+
+            # Assert
+            resultEvent = robot.brain.get("event")
+            expect(resultEvent).to.not.be.null
+            expect(resultEvent).to.be.a('Object')
+            resultPayload = robot.brain.get("payload")
+            expect(resultPayload).to.be.null
+
     describe 'constructErrorResponse', ->
         it 'return a proper payload with the text of the error', ->
             # Setup

@@ -21,6 +21,10 @@ class BaseMiddleware
         throw new Error('toSendable not implemented')
 
 class TextMiddleware extends BaseMiddleware
+    # TextMiddleware doesn't use invokes currently, so just return null
+    handleInvoke: (invokeEvent, connector) ->
+        return null
+
     toReceivable: (activity) ->
         @robot.logger.info "#{LogPrefix} TextMiddleware toReceivable"
         address = activity.address
@@ -55,6 +59,22 @@ class TextMiddleware extends BaseMiddleware
     # Indicates that the authorization isn't supported for this middleware
     supportsAuth: () ->
         return false
+
+    # Sends an error message back to the user if authorization isn't supported for the
+    # channel or prepares and sends the message to hubot for reception
+    maybeReceive: (activity, connector, authEnabled) ->
+        # Return an error to the user if the message channel doesn't support authorization
+        # and authorization is enabled
+        if authEnabled
+            @robot.logger.info "#{LogPrefix} Authorization isn\'t supported
+                                    for the channel error"
+            text = "Authorization isn't supported for this channel"
+            payload = @constructErrorResponse(activity, text)
+            @send(connector, payload)
+        else
+            event = @toReceivable activity
+            if event?
+                @robot.receive event
 
     # Sends the payload to the bot framework messaging channel
     send: (connector, payload) ->
