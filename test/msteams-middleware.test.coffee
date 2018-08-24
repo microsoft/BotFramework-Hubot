@@ -3,10 +3,103 @@ expect = chai.expect
 { TextMessage, Message, User } = require 'hubot'
 rewiremock = require('rewiremock/node').default
 MockRobot = require './mock-robot'
-BotFrameworkAdapter = require '../src/adapter'
 MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
 
 describe 'MicrosoftTeamsMiddleware', ->
+    describe 'handleInvoke', ->
+        rewiremock('botbuilder-teams').with(require('./mock-botbuilder-teams'))
+        BotBuilderTeams = null
+        robot = null
+        event = null
+        options = null
+        teamsChatConnector = null
+        authEnabled = false
+        cb = () -> {}
+
+        beforeEach ->
+            rewiremock.enable()
+            BotBuilderTeams = require 'botbuilder-teams'
+            MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
+
+            robot = new MockRobot
+            options = {
+                appId: 'botframework-app-id'
+                appPassword: 'botframework-app-password'
+            }
+            teamsChatConnector = new BotBuilderTeams.TeamsChatConnector(options)
+            teamsChatConnector.send = (payload) ->
+                robot.brain.set("payload", payload)
+
+            event =
+                type: 'invoke'
+                text: '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> about it'
+                value:
+                    hubotMessage: 'gho list (teams|repos|members)'
+                source: 'msteams'
+                entities: [
+                    type: "mention"
+                    text: "<at>Bot</at>"
+                    mentioned:
+                        id: "bot-id"
+                        name: "bot-name"
+                ,
+                    type: "mention"
+                    text: "<at>User</at>"
+                    mentioned:
+                        id: "user-id"
+                        name: "user-name"
+                ]
+                sourceEvent:
+                    tenant:
+                        id: "tenant-id"
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: "bot-id"
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: 'eight888-four-4444-fore-twelve121212'
+                        userPrincipalName: 'em@ai.l'
+        
+        afterEach ->
+            rewiremock.disable()
+
+        it 'should send user input card for specific queries', ->
+            # Setup
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+
+            # Action
+            result = null
+            expect(() ->
+                result = teamsMiddleware.handleInvoke(event, teamsChatConnector)
+            ).to.not.throw()
+
+            # Assert
+            expect(result).to.be.null
+            response = robot.brain.get("payload")
+            expect(response).to.be.a('Array')
+            expect(response.length).to.eql(2)
+        
+        it 'should return event to handle', ->
+            # Setup
+            event.value.hubotMessage = "gho list public repos"
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+
+            # Action
+            result = null
+            expect(() ->
+                result = teamsMiddleware.handleInvoke(event, teamsChatConnector)
+            ).to.not.throw()
+
+            # Assert
+            expect(result).to.not.be.null
+            expect(result).to.be.a('Object')
+            response = robot.brain.get("payload")
+            expect(response).to.be.null
 
     describe 'toReceivable', ->
         rewiremock('botbuilder-teams').with(require('./mock-botbuilder-teams'))
@@ -834,6 +927,89 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Action and Assert
             expect(teamsMiddleware.supportsAuth()).to.be.true
 
+    describe 'maybeReceive', ->
+        rewiremock('botbuilder-teams').with(require('./mock-botbuilder-teams'))
+        BotBuilderTeams = null
+        robot = null
+        teamsMiddleware = null
+        connector = null
+        authEnabled = true
+        event = null
+        payload = null
+        cb = () -> {}
+
+        beforeEach ->
+            rewiremock.enable()
+            MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
+            BotBuilderTeams = require 'botbuilder-teams'
+
+            robot = new MockRobot
+            robot.brain.set("authorizedUsers", {
+                    'an-1_20@em.ail': true
+                    'em@ai.l': false
+                    'user-UPN': true
+                })
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            connector = new BotBuilderTeams.TeamsChatConnector({
+                appId: 'a-app-id'
+                appPassword: 'a-app-password'
+            })
+            connector.send = (payload, cb) ->
+                robot.brain.set("payload", payload)
+            authEnabled = true
+
+            event =
+                type: 'message'
+                text: '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> about it'
+                agent: 'tests'
+                source: 'msteams'
+                entities: [
+                    type: "mention"
+                    text: "<at>Bot</at>"
+                    mentioned:
+                        id: "bot-id"
+                        name: "bot-name"
+                ,
+                    type: "mention"
+                    text: "<at>User</at>"
+                    mentioned:
+                        id: "user-id"
+                        name: "user-name"
+                ]
+                attachments: []
+                sourceEvent:
+                    tenant:
+                        id: "tenant-id"
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: "bot-id"
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: 'eight888-four-4444-fore-twelve121212'
+                        userPrincipalName: 'em@ai.l'
+
+        afterEach ->
+            rewiremock.disable()
+
+        it 'hubot can receive a message', ->
+            # Setup
+
+            # Action
+            expect(() ->
+                teamsMiddleware.maybeReceive(event, connector, authEnabled, \
+                                                'a-app-id', 'a-app-password')
+            ).to.not.throw()
+
+            # Assert
+            resultEvent = robot.brain.get("event")
+            expect(resultEvent).to.not.be.null
+            expect(resultEvent).to.be.a('Object')
+
     describe 'send', ->
         rewiremock('botbuilder-teams').with(require('./mock-botbuilder-teams'))
         BotBuilderTeams = null
@@ -1106,7 +1282,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.sendPayload(robot, connector, payload)
+                teamsMiddleware.sendPayload(connector, payload)
             ).to.not.throw()
 
             # Assert
@@ -1135,7 +1311,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.sendPayload(robot, connector, payload)
+                teamsMiddleware.sendPayload(connector, payload)
             ).to.not.throw()
 
             # Assert
