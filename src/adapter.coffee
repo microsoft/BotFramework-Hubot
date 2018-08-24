@@ -92,7 +92,7 @@ class BotFrameworkAdapter extends Adapter
                                      for the channel error"
                 text = "Authorization isn't supported for this channel"
                 payload = middleware.constructErrorResponse(activity, text)
-                @sendPayload(@robot, payload)
+                middleware.send(@robot.adapter.connector, payload)
                 return
             else
                 event = middleware.toReceivable activity
@@ -102,7 +102,7 @@ class BotFrameworkAdapter extends Adapter
             middleware.toReceivable activity, @enableAuth, @appId, @appPassword, \
                                     (event, response) =>
                 if response?
-                     @sendPayload(@robot, response)
+                    middleware.send(@robot.adapter.connector, response)
                 else if event?
                     @robot.receive event
 
@@ -117,30 +117,7 @@ class BotFrameworkAdapter extends Adapter
             activity = context.user.activity
             middleware = @using(activity.source)
             payload = middleware.toSendable(context, msg)
-
-            # If the message isn't from Teams, send it immediately
-            if activity.source != 'msteams'
-                @sendPayload(@robot, payload)
-                return
-
-            # The message is from Teams, so combine hubot responses
-            # received within the next 200 ms then send the combined
-            # response
-            if @robot.brain.get("justReceivedResponse") is null
-                @robot.brain.set("teamsResponse", payload)
-                @robot.brain.set("justReceivedResponse", true)
-                setTimeout(@sendPayload, 200, @robot, @robot.brain.get("teamsResponse"))
-            else
-                middleware.combineResponses(@robot.brain.get("teamsResponse"), payload)
-
-    sendPayload: (robot, payload) ->
-        if !Array.isArray(payload)
-            payload = [payload]
-        robot.adapter.connector.send payload, (err, _) ->
-            if err
-                throw err
-            robot.brain.remove("teamsResponse")
-            robot.brain.remove("justReceivedResponse")
+            middleware.send(@robot.adapter.connector, payload)
 
     run: ->
         @robot.router.post @endpoint, @connector.listen()

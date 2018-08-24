@@ -9,9 +9,8 @@ MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
 describe 'MicrosoftTeamsMiddleware', ->
 
     describe 'toReceivable', ->
-        rewiremock('botbuilder-teams').with(require('./mock-teamschatconnector'))
+        rewiremock('botbuilder-teams').with(require('./mock-botbuilder-teams'))
         BotBuilderTeams = null
-        MicrosoftTeamsMiddleware = null
 
         robot = null
         event = null
@@ -834,6 +833,314 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action and Assert
             expect(teamsMiddleware.supportsAuth()).to.be.true
+
+    describe 'send', ->
+        rewiremock('botbuilder-teams').with(require('./mock-botbuilder-teams'))
+        BotBuilderTeams = null
+        robot = null
+        teamsMiddleware = null
+        connector = null
+        payload = null
+        cb = () -> {}
+
+        beforeEach ->
+            rewiremock.enable()
+            MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
+            BotBuilderTeams = require 'botbuilder-teams'
+
+            robot = new MockRobot
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            connector = new BotBuilderTeams.TeamsChatConnector({
+                appId: 'a-app-id'
+                appPassword: 'a-app-password'
+            })
+            connector.send = (payload, cb) ->
+                robot.brain.set("payload", payload)
+
+            payload = [{
+                type: 'typing'
+                address:
+                    id: 'address-id'
+                    channelId: 'channel-id'
+                    user:
+                        id: 'user-id'
+                        name: 'user-name'
+                        aadObjectId: 'user-aadobject-id'
+                        userPrincipalName: "user-UPN"
+                    conversation:
+                        conversationType: 'personal'
+                        id: 'conversation-id'
+                    bot:
+                        id: 'bot-id'
+                        name: 'bot-name'
+                    serviceUrl: 'service-url'
+            },
+            {
+                type: 'message'
+                text: "a message"
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: "user-aad-id"
+                        userPrincipalName: "user-UPN"
+            }]
+        
+        afterEach ->
+            rewiremock.disable()
+        
+        it 'should set justReceivedResponse on first message received and store response', ->
+            # Setup
+
+            # Action
+            expect(() ->
+                teamsMiddleware.send(connector, payload)
+            ).to.not.throw()
+
+            # Assert
+            expect(robot.brain.get("justReceivedResponse")).to.be.true
+            expect(robot.brain.get("teamsResponse")).to.not.be.null
+
+        it 'should send correct response when one response is sent', (done) ->
+            # Setup
+            expected = [{
+                type: 'typing'
+                address:
+                    id: 'address-id'
+                    channelId: 'channel-id'
+                    user:
+                        id: 'user-id'
+                        name: 'user-name'
+                        aadObjectId: 'user-aadobject-id'
+                        userPrincipalName: "user-UPN"
+                    conversation:
+                        conversationType: 'personal'
+                        id: 'conversation-id'
+                    bot:
+                        id: 'bot-id'
+                        name: 'bot-name'
+                    serviceUrl: 'service-url'
+            },
+            {
+                type: 'message'
+                text: "a message"
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: "user-aad-id"
+                        userPrincipalName: "user-UPN"
+            }]
+
+            # Action
+            expect(() ->
+                teamsMiddleware.send(connector, payload)
+            ).to.not.throw()
+
+            # Assert, after 200ms to allow the payload to be "sent"
+            setTimeout((robot, expected) ->
+                result = robot.brain.get("payload")
+                expect(result).to.deep.eql(expected)
+                done()
+            , 200, robot, expected)
+
+        it 'should send combined responses for messages received within 100ms', ->
+            # Setup
+            payload2 = [{
+                type: 'typing'
+                address:
+                    id: 'address-id'
+                    channelId: 'channel-id'
+                    user:
+                        id: 'user-id'
+                        name: 'user-name'
+                        aadObjectId: 'user-aadobject-id'
+                        userPrincipalName: "user-UPN"
+                    conversation:
+                        conversationType: 'personal'
+                        id: 'conversation-id'
+                    bot:
+                        id: 'bot-id'
+                        name: 'bot-name'
+                    serviceUrl: 'service-url'
+            },
+            {
+                type: 'message'
+                text: "another message"
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: "user-aad-id"
+                        userPrincipalName: "user-UPN"
+            }]
+            expected = [{
+                type: 'typing'
+                address:
+                    id: 'address-id'
+                    channelId: 'channel-id'
+                    user:
+                        id: 'user-id'
+                        name: 'user-name'
+                        aadObjectId: 'user-aadobject-id'
+                        userPrincipalName: "user-UPN"
+                    conversation:
+                        conversationType: 'personal'
+                        id: 'conversation-id'
+                    bot:
+                        id: 'bot-id'
+                        name: 'bot-name'
+                    serviceUrl: 'service-url'
+            },
+            {
+                type: 'message'
+                text: "a message\nanother message"
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: "user-aad-id"
+                        userPrincipalName: "user-UPN"
+            }]
+
+            # Action
+            expect(() ->
+                teamsMiddleware.send(connector, payload)
+            ).to.not.throw()
+            expect(() ->
+                teamsMiddleware.send(connector, payload2)
+            ).to.not.throw()
+
+            # Assert, after 200ms to allow the payload to be "sent"
+            setTimeout((robot, expected) ->
+                result = robot.brain.get("payload")
+                expect(result).to.deep.eql(expected)
+                done()
+            , 200, robot, expected)
+
+    describe 'sendPayload', ->
+        rewiremock('botbuilder-teams').with(require('./mock-botbuilder-teams'))
+        BotBuilderTeams = null
+        robot = null
+        teamsMiddleware = null
+        connector = null
+        payload = null
+        cb = () -> {}
+
+        beforeEach ->
+            rewiremock.enable()
+            MicrosoftTeamsMiddleware = require '../src/msteams-middleware'
+            BotBuilderTeams = require 'botbuilder-teams'
+
+            robot = new MockRobot
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            connector = new BotBuilderTeams.TeamsChatConnector({
+                appId: 'a-app-id'
+                appPassword: 'a-app-password'
+            })
+            connector.send = (payload, cb) ->
+                robot.brain.set("payload", payload)
+
+            payload = {
+                type: 'message'
+                text: ""
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: "user-aad-id"
+                        userPrincipalName: "user-UPN"
+            }
+        
+        afterEach ->
+            rewiremock.disable()
+
+        it 'should package non-array payload in array before sending', ->
+            # Setup
+            expected = [{
+                type: 'message'
+                text: ""
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: "user-aad-id"
+                        userPrincipalName: "user-UPN"
+            }]
+
+            # Action
+            expect(() ->
+                teamsMiddleware.sendPayload(robot, connector, payload)
+            ).to.not.throw()
+
+            # Assert
+            result = robot.brain.get("payload")
+            expect(result).to.deep.eql(expected)
+
+        it 'should pass payload array through unchanged', ->
+            # Setup
+            payload = [payload]
+            expected = [{
+                type: 'message'
+                text: ""
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+                        aadObjectId: "user-aad-id"
+                        userPrincipalName: "user-UPN"
+            }]
+
+            # Action
+            expect(() ->
+                teamsMiddleware.sendPayload(robot, connector, payload)
+            ).to.not.throw()
+
+            # Assert
+            result = robot.brain.get("payload")
+            expect(result).to.deep.eql(expected)
     
     describe 'combineResponses', ->
         robot = null
@@ -854,6 +1161,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                             id: 'user-id'
                             name: 'user-name'
                             aadObjectId: 'user-aadobject-id'
+                            userPrincipalName: "user-UPN"
                         conversation:
                             conversationType: 'personal'
                             id: 'conversation-id'
@@ -871,6 +1179,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                             id: 'user-id'
                             name: 'user-name'
                             aadObjectId: 'user-aadobject-id'
+                            userPrincipalName: "user-UPN"
                         conversation:
                             conversationType: 'personal'
                             id: 'conversation-id'
@@ -895,6 +1204,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                             id: 'user-id'
                             name: 'user-name'
                             aadObjectId: 'user-aadobject-id'
+                            userPrincipalName: "user-UPN"
                         conversation:
                             conversationType: 'personal'
                             id: 'conversation-id'
@@ -912,6 +1222,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                             id: 'user-id'
                             name: 'user-name'
                             aadObjectId: 'user-aadobject-id'
+                            userPrincipalName: "user-UPN"
                         conversation:
                             conversationType: 'personal'
                             id: 'conversation-id'
@@ -936,6 +1247,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                             id: 'user-id'
                             name: 'user-name'
                             aadObjectId: 'user-aadobject-id'
+                            userPrincipalName: "user-UPN"
                         conversation:
                             conversationType: 'personal'
                             id: 'conversation-id'
@@ -953,6 +1265,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                             id: 'user-id'
                             name: 'user-name'
                             aadObjectId: 'user-aadobject-id'
+                            userPrincipalName: "user-UPN"
                         conversation:
                             conversationType: 'personal'
                             id: 'conversation-id'
@@ -1315,6 +1628,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                             id: 'user-id'
                             name: 'user-name'
                             aadObjectId: 'user-aadobject-id'
+                            userPrincipalName: "user-UPN"
                         conversation:
                             conversationType: 'personal'
                             id: 'conversation-id'
@@ -1332,6 +1646,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                             id: 'user-id'
                             name: 'user-name'
                             aadObjectId: 'user-aadobject-id'
+                            userPrincipalName: "user-UPN"
                         conversation:
                             conversationType: 'personal'
                             id: 'conversation-id'
@@ -1349,6 +1664,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                             id: 'user-id'
                             name: 'user-name'
                             aadObjectId: 'user-aadobject-id'
+                            userPrincipalName: "user-UPN"
                         conversation:
                             conversationType: 'personal'
                             id: 'conversation-id'

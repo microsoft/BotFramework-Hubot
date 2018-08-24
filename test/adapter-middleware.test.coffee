@@ -3,6 +3,7 @@ expect = chai.expect
 { TextMessage, Message, User } = require 'hubot'
 MockRobot = require './mock-robot'
 { BaseMiddleware, TextMiddleware, middlewareFor } = require '../src/adapter-middleware'
+BotBuilderTeams = require('./mock-botbuilder-teams')
 
 describe 'middlewareFor', ->
     it 'should return Middleware for null', ->
@@ -228,3 +229,89 @@ describe 'TextMiddleware', ->
                             id: "user-id"
                             name: "user-name"
             }
+    
+    describe 'send', ->
+        robot = null
+        middleware = null
+        connector = null
+        payload = null
+        cb = () -> {}
+
+        beforeEach ->
+            robot = new MockRobot
+            middleware = new TextMiddleware(robot)
+            connector = new BotBuilderTeams.TeamsChatConnector({
+                appId: 'a-app-id'
+                appPassword: 'a-app-password'
+            })
+            connector.send = (payload, cb) ->
+                robot.brain.set("payload", payload)
+
+            payload = {
+                type: 'message'
+                text: ""
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+            }
+
+        it 'should package non-array payload in array before sending', ->
+            # Setup
+            expected = [{
+                type: 'message'
+                text: ""
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+            }]
+
+            # Action
+            expect(() ->
+                middleware.send(connector, payload)
+            ).to.not.throw()
+
+            # Assert
+            result = robot.brain.get("payload")
+            expect(result).to.deep.eql(expected)
+
+
+        it 'should pass payload array through unchanged', ->
+            # Setup
+            payload = [payload]
+            expected = [{
+                type: 'message'
+                text: ""
+                address:
+                    conversation:
+                        isGroup: 'true'
+                        conversationType: 'channel'
+                        id: "19:conversation-id"
+                    bot:
+                        id: 'a-app-id'
+                    user:
+                        id: "user-id"
+                        name: "user-name"
+            }]
+
+            # Action
+            expect(() ->
+                middleware.send(connector, payload)
+            ).to.not.throw()
+
+            # Assert
+            result = robot.brain.get("payload")
+            expect(result).to.deep.eql(expected)

@@ -56,6 +56,14 @@ class TextMiddleware extends BaseMiddleware
     supportsAuth: () ->
         return false
 
+    # Sends the payload to the bot framework messaging channel
+    send: (connector, payload) ->
+        if !Array.isArray(payload)
+            payload = [payload]
+        connector.send payload, (err, _) ->
+            if err
+                throw err
+
 Middleware = {
     '*': TextMiddleware
 }

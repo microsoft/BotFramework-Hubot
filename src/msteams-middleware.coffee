@@ -132,9 +132,30 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     supportsAuth: () ->
         return true
 
+    # Combines payloads then sends the combined payload to MS Teams
+    send: (connector, payload) ->
+        # The message is from Teams, so combine hubot responses
+        # received within the next 100 ms then send the combined
+        # response
+        if @robot.brain.get("justReceivedResponse") is null
+            @robot.brain.set("teamsResponse", payload)
+            @robot.brain.set("justReceivedResponse", true)
+            setTimeout(@sendPayload, 100, @robot, connector, @robot.brain.get("teamsResponse"))
+        else
+            @combineResponses(@robot.brain.get("teamsResponse"), payload)
+
+    sendPayload: (robot, connector, payload) ->
+        if !Array.isArray(payload)
+            payload = [payload]
+        connector.send payload, (err, _) ->
+            if err
+                throw err
+            robot.brain.remove("teamsResponse")
+            robot.brain.remove("justReceivedResponse")
+
     # Combines the text and attachments of multiple hubot messages sent in succession.
     # Most of the first received response is kept, and the text and attachments of
-    # subsequent responses received within 200ms of the first are combined into the
+    # subsequent responses received within 100ms of the first are combined into the
     # first response. Assumes inputs follow the format of the payload returned by
     # toSendable
     combineResponses: (storedPayload, newPayload) ->
