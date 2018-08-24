@@ -1622,20 +1622,20 @@ describe 'MicrosoftTeamsMiddleware', ->
                 value:
                     hubotMessage: 'hubot gho delete team <team name>'
                 address:
-                        id: 'address-id'
-                        channelId: 'channel-id'
-                        user:
-                            id: 'user-id'
-                            name: 'user-name'
-                            aadObjectId: 'user-aadobject-id'
-                            userPrincipalName: "user-UPN"
-                        conversation:
-                            conversationType: 'personal'
-                            id: 'conversation-id'
-                        bot:
-                            id: 'bot-id'
-                            name: 'bot-name'
-                        serviceUrl: 'service-url'
+                    id: 'address-id'
+                    channelId: 'channel-id'
+                    user:
+                        id: 'user-id'
+                        name: 'user-name'
+                        aadObjectId: 'user-aadobject-id'
+                        userPrincipalName: "user-UPN"
+                    conversation:
+                        conversationType: 'personal'
+                        id: 'conversation-id'
+                    bot:
+                        id: 'bot-id'
+                        name: 'bot-name'
+                    serviceUrl: 'service-url'
             expected = [
                 {
                     type: 'typing'

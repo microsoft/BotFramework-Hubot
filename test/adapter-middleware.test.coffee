@@ -222,7 +222,7 @@ describe 'TextMiddleware', ->
                 text: 'an error message'
                 address:
                     conversation:
-                            id: "conversation-id"
+                        id: "conversation-id"
                         bot:
                             id: "bot-id"
                         user:
