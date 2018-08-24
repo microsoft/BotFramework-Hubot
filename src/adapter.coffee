@@ -60,16 +60,6 @@ class BotFrameworkAdapter extends Adapter
         event = middleware.handleInvoke(invokeEvent, @connector)
         if event != null
             @handleActivity(event)
-        # return
-
-        # payload = middleware.maybeConstructUserInputPrompt(invokeEvent)
-        # if payload == null
-        #     invokeEvent.text = invokeEvent.value.hubotMessage
-        #     delete invokeEvent.value
-        #     @handleActivity(invokeEvent)
-        # else
-        #     middleware.sendPayload(@connector, payload)
-        # return
 
     using: (name) ->
         MiddlewareClass = Middleware.middlewareFor(name)
@@ -90,27 +80,8 @@ class BotFrameworkAdapter extends Adapter
         # If authorization isn't supported by the activity source, use
         # the text middleware, otherwise use the Teams middleware
         if not middleware.supportsAuth()
-            # Return an error to the user if the message channel doesn't support authorization
-            # and authorization is enabled
-            # if @enableAuth
-            #     @robot.logger.info "#{LogPrefix} Authorization isn\'t supported
-            #                          for the channel error"
-            #     text = "Authorization isn't supported for this channel"
-            #     payload = middleware.constructErrorResponse(activity, text)
-            #     middleware.send(@connector, payload)
-            #     return
-            # else
-            #     event = middleware.toReceivable activity
-            #     if event?
-            #         @robot.receive event
             middleware.maybeReceive(activity, @connector, @enableAuth)
         else
-            # middleware.toReceivable activity, @enableAuth, @appId, @appPassword, \
-            #                         (event, response) =>
-            #     if response?
-            #         middleware.send(@connector, response)
-            #     else if event?
-            #         @robot.receive event
             middleware.maybeReceive(activity, @connector, @enableAuth, \
                                     @appId, @appPassword)
 
