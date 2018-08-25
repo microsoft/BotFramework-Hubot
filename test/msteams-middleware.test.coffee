@@ -14,6 +14,8 @@ describe 'MicrosoftTeamsMiddleware', ->
         options = null
         teamsChatConnector = null
         authEnabled = false
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
         cb = () -> {}
 
         beforeEach ->
@@ -70,7 +72,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it 'should send user input card for specific queries', ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             result = null
@@ -87,7 +89,7 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'should return event to handle', ->
             # Setup
             event.value.hubotMessage = "gho list public repos"
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             result = null
@@ -111,6 +113,8 @@ describe 'MicrosoftTeamsMiddleware', ->
         teamsChatConnector = null
         authEnabled = false
         cb = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
 
         beforeEach ->
             rewiremock.enable()
@@ -171,12 +175,11 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'should allow messages when auth is not enabled', ->
             # Setup
             delete event.sourceEvent
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -189,13 +192,12 @@ describe 'MicrosoftTeamsMiddleware', ->
                 'an-1_20@em.ail': true
                 'em@ai.l': false
                 'user-UPN': true
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             authEnabled = true
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -209,7 +211,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                 'an-1_20@em.ail': true
                 'authorized_user@email.la': false
             event.address.user.userPrincipalName = 'not@author.ized'
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             authEnabled = true
             errorText = 'You are not authorized to send commands to hubot. \
                             To gain access, talk to your admins:\r\n- an-1_2\
@@ -250,8 +252,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -261,12 +262,11 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'should allow messages without tenant id when tenant filter is empty', ->
             # Setup
             delete event.sourceEvent
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -275,12 +275,11 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it 'should allow messages with tenant id when tenant filter is empty', ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -290,12 +289,11 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'should allow messages from allowed tenant ids', ->
             # Setup
             process.env.HUBOT_OFFICE365_TENANT_FILTER = event.sourceEvent.tenant.id
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -306,12 +304,11 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Setup
             process.env.HUBOT_OFFICE365_TENANT_FILTER = event.sourceEvent.tenant.id
             event.sourceEvent.tenant.id = "different-tenant-id"
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -321,12 +318,11 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'return generic message when appropriate type is not found', ->
             # Setup
             event.type = 'typing'
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -336,7 +332,7 @@ describe 'MicrosoftTeamsMiddleware', ->
         # Test when message is from follow up button
         it 'should construct query when activity value is defined (message from button click)', ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             delete event.text
             prefix = "gho add (members|repos) <members|repos> to team <team name>"
             event.value = {
@@ -351,8 +347,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -363,12 +358,11 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'should work when activity text is an object', ->
             # Setup
             event.text = event
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -378,12 +372,11 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'should work when mentions not provided', ->
             # Setup
             delete event.entities
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -392,12 +385,11 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it 'should replace all @ mentions to the bot with the bot name', ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -408,7 +400,7 @@ describe 'MicrosoftTeamsMiddleware', ->
         
         it 'should replace all @ mentions to chat users with their user principal name', ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             event.text = '<at>Bot</at> do something <at>Bot</at> and tell <at>User</at> \
                         and <at>User2</at> about it'
             event.entities.push(
@@ -421,8 +413,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -435,12 +426,11 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Setup
             event.entities = event.entities[0]
             event.text = "<at>Bot</at> do something <at>Bot</at>"
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -450,7 +440,7 @@ describe 'MicrosoftTeamsMiddleware', ->
         
         it 'should replace @ mentions to non-chat roster users with their name', ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             event.entities[1] =
                 type: "mention"
                 text: "<at>User</at>"
@@ -460,8 +450,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -472,13 +461,12 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it 'should trim whitespace before and after text', ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             event.text = "   #{event.text}      \n   "
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -492,12 +480,11 @@ describe 'MicrosoftTeamsMiddleware', ->
             event.address.conversation.conversationType = 'personal'
             delete event.address.conversation.isGroup
             event.text = 'do something <at>Bot</at> and tell <at>User</at> about it'
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             expect(() ->
-                teamsMiddleware.toReceivable(event, authEnabled, options.appId, \
-                                            options.appPassword, cb)
+                teamsMiddleware.toReceivable(event, authEnabled, cb)
             ).to.not.throw()
 
             # Assert
@@ -510,6 +497,9 @@ describe 'MicrosoftTeamsMiddleware', ->
         robot = null
         message = null
         context = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
+
         beforeEach ->
             robot = new MockRobot
             context =
@@ -549,7 +539,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it 'should create message object for string messages', ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             sendable = null
@@ -574,7 +564,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             # Setup
             message =
               type: "some message type"
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             sendable = null
@@ -595,7 +585,7 @@ describe 'MicrosoftTeamsMiddleware', ->
         # Should construct response card for specific queries
         it 'should construct response card for specific queries', ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             context.user.activity.text = 'hubot gho list teams'
 
             # Action
@@ -709,7 +699,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                     name:'user'
 
             message = "<@1234> Hello! <@1234>"
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             sendable = null
@@ -750,7 +740,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                     name:'user'
 
             message = "<@1234|mention text> Hello! <@1234|different>"
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             sendable = null
@@ -786,7 +776,7 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'should convert slack @ mentions with unfound user', ->
             # Setup
             message = "<@1234> Hello! <@1234|different>"
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             sendable = null
@@ -822,7 +812,7 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'should convert images', ->
             # Setup
             message = "http://test.com/thisisanimage.jpg"
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             sendable = null
@@ -849,7 +839,7 @@ describe 'MicrosoftTeamsMiddleware', ->
         it 'should not convert other links', ->
             # Setup
             message = "http://test.com/thisisanimage.html"
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
 
             # Action
             sendable = null
@@ -872,7 +862,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it "should escape < when message starts with 'hubot' (such as for hubot help)", ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             message = "hubot command <blah> - this message has < symbols in multiple places <"
 
             # Action
@@ -896,7 +886,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         it "should replace \\n with <br/> in text to render correctly in Teams", ->
             # Setup
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             message = "some \nmessage"
 
             # Action
@@ -918,15 +908,6 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             expect(sendable).to.deep.equal(expected)
 
-    describe 'supportsAuth', ->
-        it 'should return true', ->
-            # Setup
-            robot = new MockRobot
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
-
-            # Action and Assert
-            expect(teamsMiddleware.supportsAuth()).to.be.true
-
     describe 'maybeReceive', ->
         rewiremock('botbuilder-teams').with(require('./mock-botbuilder-teams'))
         BotBuilderTeams = null
@@ -936,6 +917,8 @@ describe 'MicrosoftTeamsMiddleware', ->
         authEnabled = true
         event = null
         payload = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
         cb = () -> {}
 
         beforeEach ->
@@ -949,7 +932,7 @@ describe 'MicrosoftTeamsMiddleware', ->
                     'em@ai.l': false
                     'user-UPN': true
                 })
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             connector = new BotBuilderTeams.TeamsChatConnector({
                 appId: 'a-app-id'
                 appPassword: 'a-app-password'
@@ -1001,8 +984,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
             # Action
             expect(() ->
-                teamsMiddleware.maybeReceive(event, connector, authEnabled, \
-                                                'a-app-id', 'a-app-password')
+                teamsMiddleware.maybeReceive(event, connector, authEnabled)
             ).to.not.throw()
 
             # Assert
@@ -1017,6 +999,8 @@ describe 'MicrosoftTeamsMiddleware', ->
         teamsMiddleware = null
         connector = null
         payload = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
         cb = () -> {}
 
         beforeEach ->
@@ -1025,7 +1009,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             BotBuilderTeams = require 'botbuilder-teams'
 
             robot = new MockRobot
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             connector = new BotBuilderTeams.TeamsChatConnector({
                 appId: 'a-app-id'
                 appPassword: 'a-app-password'
@@ -1225,6 +1209,8 @@ describe 'MicrosoftTeamsMiddleware', ->
         teamsMiddleware = null
         connector = null
         payload = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
         cb = () -> {}
 
         beforeEach ->
@@ -1233,7 +1219,7 @@ describe 'MicrosoftTeamsMiddleware', ->
             BotBuilderTeams = require 'botbuilder-teams'
 
             robot = new MockRobot
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             connector = new BotBuilderTeams.TeamsChatConnector({
                 appId: 'a-app-id'
                 appPassword: 'a-app-password'
@@ -1324,9 +1310,12 @@ describe 'MicrosoftTeamsMiddleware', ->
         storedPayload = null
         newPayload = null
         expected = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
+
         beforeEach ->
             robot = new MockRobot
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             storedPayload = [
                 {
                     type: 'typing'
@@ -1728,10 +1717,12 @@ describe 'MicrosoftTeamsMiddleware', ->
         text = null
         appendAdmins = false
         expected = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
 
         beforeEach ->
             robot = new MockRobot
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             activity =
                 address:
                     addressField: "a value"
@@ -1791,9 +1782,12 @@ describe 'MicrosoftTeamsMiddleware', ->
         teamsMiddleware = null
         event = null
         expected = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
+
         beforeEach ->
             robot = new MockRobot
-            teamsMiddleware = new MicrosoftTeamsMiddleware(robot)
+            teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             event =
                 value:
                     hubotMessage: 'hubot gho delete team <team name>'

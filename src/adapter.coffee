@@ -63,7 +63,7 @@ class BotFrameworkAdapter extends Adapter
 
     using: (name) ->
         MiddlewareClass = Middleware.middlewareFor(name)
-        new MiddlewareClass(@robot)
+        new MiddlewareClass(@robot, @appId, @appPassword)
 
     onBotEvents: (activities, cb) ->
         @robot.logger.info "#{LogPrefix} onBotEvents"
@@ -76,14 +76,7 @@ class BotFrameworkAdapter extends Adapter
 
         # Construct the middleware
         middleware = @using(activity.source)
-
-        # If authorization isn't supported by the activity source, use
-        # the text middleware, otherwise use the Teams middleware
-        if not middleware.supportsAuth()
-            middleware.maybeReceive(activity, @connector, @enableAuth)
-        else
-            middleware.maybeReceive(activity, @connector, @enableAuth, \
-                                    @appId, @appPassword)
+        middleware.maybeReceive(activity, @connector, @enableAuth)
 
     send: (context, messages...) ->
         @robot.logger.info "#{LogPrefix} send"

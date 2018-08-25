@@ -11,8 +11,10 @@
 LogPrefix = "hubot-botframework-middleware:"
 
 class BaseMiddleware
-    constructor: (@robot) ->
+    constructor: (@robot, appId, appPassword) ->
         @robot.logger.info "#{LogPrefix} creating middleware..."
+        @appId = appId
+        @appPassword = appPassword
 
     toReceivable: (activity) ->
         throw new Error('toReceivable not implemented')
@@ -55,10 +57,6 @@ class TextMiddleware extends BaseMiddleware
             text: "#{text}"
             address: activity?.address
         return payload
-    
-    # Indicates that the authorization isn't supported for this middleware
-    supportsAuth: () ->
-        return false
 
     # Sends an error message back to the user if authorization isn't supported for the
     # channel or prepares and sends the message to hubot for reception

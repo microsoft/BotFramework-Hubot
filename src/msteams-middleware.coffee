@@ -33,8 +33,10 @@ LogPrefix = "hubot-msteams:"
 
 
 class MicrosoftTeamsMiddleware extends BaseMiddleware
-    constructor: (@robot) ->
+    constructor: (@robot, appId, appPassword) ->
         super(@robot)
+        @appId = appId
+        @appPassword = appPassword
 
         @allowedTenants = []
         if process.env.HUBOT_OFFICE365_TENANT_FILTER?
@@ -54,7 +56,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             delete invokeEvent.value
             return invokeEvent
 
-    toReceivable: (activity, authEnabled, appId, appPassword, cb) ->
+    toReceivable: (activity, authEnabled, cb) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
         # Drop the activity if it came from an unauthorized tenant
@@ -73,13 +75,13 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
         # Fetch the roster of members to do authorization based on UPN
         teamsConnector = new BotBuilderTeams.TeamsChatConnector {
-            appId: appId
-            appPassword: appPassword
+            appId: @appId
+            appPassword: @appPassword
         }
         teamsConnector.fetchMembers activity?.address?.serviceUrl, \
                             activity?.address?.conversation?.id, (err, chatMembers) =>
             if err
-                return
+                throw err
             # Return with unauthorized error as true if auth is enabled and the user who sent
             # the message is not authorized
             if authEnabled
@@ -134,17 +136,13 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         typingMessage =
           type: "typing"
           address: activity?.address
-        
-        # Check if there is a stored response
 
         return [typingMessage, response]
-    
-    # Indicates that the authorization is supported for this middleware (MSTeams)
-    supportsAuth: () ->
-        return true
 
-    maybeReceive: (activity, connector, authEnabled, appId, appPassword) ->
-        @toReceivable activity, authEnabled, appId, appPassword,
+    # Converts the activity to a hubot message and passes it to
+    # hubot for reception on success
+    maybeReceive: (activity, connector, authEnabled) ->
+        @toReceivable activity, authEnabled,
             (event, response) =>
                 if response?
                     @send(connector, response)

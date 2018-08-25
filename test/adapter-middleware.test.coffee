@@ -81,6 +81,8 @@ describe 'TextMiddleware', ->
         robot = null
         event = null
         connector = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
         beforeEach ->
             robot = new MockRobot
             event =
@@ -101,7 +103,7 @@ describe 'TextMiddleware', ->
 
         it 'should return null', ->
             # Setup
-            middleware = new TextMiddleware(robot)
+            middleware = new TextMiddleware(robot, appId, appPassword)
 
             # Action
             result = null
@@ -115,6 +117,8 @@ describe 'TextMiddleware', ->
     describe 'toReceivable', ->
         robot = null
         event = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
         beforeEach ->
             robot = new MockRobot
             event =
@@ -134,7 +138,7 @@ describe 'TextMiddleware', ->
         it 'return generic message when appropriate type is not found', ->
             # Setup
             event.type = 'typing'
-            middleware = new TextMiddleware(robot)
+            middleware = new TextMiddleware(robot, appId, appPassword)
 
             # Action
             receivable = null
@@ -147,7 +151,7 @@ describe 'TextMiddleware', ->
 
         it 'return message when type is message', ->
             # Setup
-            middleware = new TextMiddleware(robot)
+            middleware = new TextMiddleware(robot, appId, appPassword)
 
             # Action
             receivable = null
@@ -162,6 +166,8 @@ describe 'TextMiddleware', ->
         robot = null
         message = null
         context = null
+        appId = 'a-app-id'
+        appPassword = 'a-app-password'
         beforeEach ->
             robot = new MockRobot
             context =
@@ -185,7 +191,7 @@ describe 'TextMiddleware', ->
 
         it 'should create message object for string messages', ->
             # Setup
-            middleware = new TextMiddleware(robot)
+            middleware = new TextMiddleware(robot, appId, appPassword)
 
             # Action
             sendable = null
@@ -205,7 +211,7 @@ describe 'TextMiddleware', ->
             # Setup
             message =
               type: "some message type"
-            middleware = new TextMiddleware(robot)
+            middleware = new TextMiddleware(robot, appId, appPassword)
 
             # Action
             sendable = null
@@ -216,15 +222,6 @@ describe 'TextMiddleware', ->
             # Verify
             expected = message
             expect(sendable).to.deep.equal(expected)
-
-    describe 'supportsAuth', ->
-        it 'should return false', ->
-            # Setup
-            robot = new MockRobot
-            middleware = new TextMiddleware(robot)
-
-            # Action and Assert
-            expect(middleware.supportsAuth()).to.be.false
     
     describe 'maybeReceive', ->
         robot = null
@@ -235,7 +232,7 @@ describe 'TextMiddleware', ->
 
         beforeEach ->
             robot = new MockRobot
-            middleware = new TextMiddleware(robot)
+            middleware = new TextMiddleware(robot, 'a-app-id', 'a-app-password')
             connector =
                 send: (payload, cb) ->
                     robot.brain.set("payload", payload)
@@ -309,7 +306,7 @@ describe 'TextMiddleware', ->
         it 'return a proper payload with the text of the error', ->
             # Setup
             robot = new MockRobot
-            middleware = new TextMiddleware(robot)
+            middleware = new TextMiddleware(robot, 'a-app-id', 'a-app-password')
             event =
                 type: 'message'
                 text: 'Bot do something and tell User about it'
@@ -353,7 +350,7 @@ describe 'TextMiddleware', ->
 
         beforeEach ->
             robot = new MockRobot
-            middleware = new TextMiddleware(robot)
+            middleware = new TextMiddleware(robot, 'a-app-id', 'a-app-password')
             connector = new BotBuilderTeams.TeamsChatConnector({
                 appId: 'a-app-id'
                 appPassword: 'a-app-password'
