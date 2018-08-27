@@ -139,8 +139,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
                     @send(connector, errorResponse)
                     return
 
-                # Add the sender's UPN to user
-                user.userPrincipalName = senderUPN
+            # Add the sender's UPN to the activity
+            activity.address.user.userPrincipalName = senderUPN
 
             # Convert the message to a hubot understandable form and
             # send to the robot on success
@@ -276,6 +276,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             name: activity?.address?.user?.name,
             tenant: getTenantId(activity)
             aadObjectId: getUserAadObjectId(activity)
+            userPrincipalName: activity?.address?.user?.userPrincipalName
         return user
     
     # Fetches the user's name from the activity
