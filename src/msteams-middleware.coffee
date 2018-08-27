@@ -56,7 +56,7 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
             delete invokeEvent.value
             return invokeEvent
 
-    toReceivable: (activity, authEnabled, cb) ->
+    toReceivable: (activity, chatMembers) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
 
         # Drop the activity if it came from an unauthorized tenant
@@ -73,39 +73,13 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
         user.activity = activity
         user.room = getRoomId(activity)
 
-        # Fetch the roster of members to do authorization based on UPN
-        teamsConnector = new BotBuilderTeams.TeamsChatConnector {
-            appId: @appId
-            appPassword: @appPassword
-        }
-        teamsConnector.fetchMembers activity?.address?.serviceUrl, \
-                            activity?.address?.conversation?.id, (err, chatMembers) =>
-            if err
-                throw err
-            # Return with unauthorized error as true if auth is enabled and the user who sent
-            # the message is not authorized
-            if authEnabled
-                authorizedUsers = @robot.brain.get("authorizedUsers")
-                senderUPN = getSenderUPN(user, chatMembers).toLowerCase()
-                if senderUPN is undefined or authorizedUsers[senderUPN] is undefined
-                    @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
-                    text = "You are not authorized to send commands to hubot.
-                            To gain access, talk to your admins:"
-                    errorResponse = @constructErrorResponse(activity, text, true)
-                    cb(null, errorResponse)
-                    return
+        # Return a generic message if the activity isn't a message or invoke
+        if activity.type != 'message' && activity.type != 'invoke'
+            return new Message(user)
 
-                # Add the sender's UPN to user
-                user.userPrincipalName = senderUPN
-
-            # Return a generic message if the activity isn't a message or invoke
-            if activity.type != 'message' && activity.type != 'invoke'
-                cb(new Message(user), null)
-                return
-
-            activity = fixActivityForHubot(activity, @robot, chatMembers)
-            message = new TextMessage(user, activity.text, activity.address.id)
-            cb(message, null)
+        activity = fixActivityForHubot(activity, @robot, chatMembers)
+        message = new TextMessage(user, activity.text, activity.address.id)
+        return message
 
     toSendable: (context, message) ->
         @robot.logger.info "#{LogPrefix} toSendable"
@@ -142,12 +116,37 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # Converts the activity to a hubot message and passes it to
     # hubot for reception on success
     maybeReceive: (activity, connector, authEnabled) ->
-        @toReceivable activity, authEnabled,
-            (event, response) =>
-                if response?
-                    @send(connector, response)
-                else if event?
-                    @robot.receive event
+        # Fetch the roster of members to do authorization, if enabled, based on UPN
+        teamsConnector = new BotBuilderTeams.TeamsChatConnector {
+            appId: @appId
+            appPassword: @appPassword
+        }
+        teamsConnector.fetchMembers activity?.address?.serviceUrl, \
+                            activity?.address?.conversation?.id, (err, chatMembers) =>
+            if err
+                throw err
+            # Return with unauthorized error as true if auth is enabled and the user who sent
+            # the message is not authorized
+            if authEnabled
+                authorizedUsers = @robot.brain.get("authorizedUsers")
+                user = getUser(activity)
+                senderUPN = getSenderUPN(user, chatMembers).toLowerCase()
+                if senderUPN is undefined or authorizedUsers[senderUPN] is undefined
+                    @robot.logger.info "#{LogPrefix} Unauthorized user; returning error"
+                    text = "You are not authorized to send commands to hubot.
+                            To gain access, talk to your admins:"
+                    errorResponse = @constructErrorResponse(activity, text, true)
+                    @send(connector, errorResponse)
+                    return
+
+                # Add the sender's UPN to user
+                user.userPrincipalName = senderUPN
+
+            # Convert the message to a hubot understandable form and
+            # send to the robot on success
+            event = @toReceivable activity, chatMembers
+            if event?
+                @robot.receive event
 
     # Combines payloads then sends the combined payload to MS Teams
     send: (connector, payload) ->
