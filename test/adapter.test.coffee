@@ -15,10 +15,13 @@ describe 'Main Adapter', ->
             # Setup
             delete process.env.HUBOT_TEAMS_ENABLE_AUTH
             robot = new MockRobot
+            adapter = BotFrameworkAdapter.use(robot)
+            adapter.run = () ->
+                @emit "loadAuthorizedUsers"
 
             # Action
             expect(() ->
-                adapter = BotFrameworkAdapter.use(robot)
+                adapter.run(robot)
             ).to.not.throw()
 
             # Assert
@@ -28,32 +31,41 @@ describe 'Main Adapter', ->
             # Setup
             process.env.HUBOT_TEAMS_ENABLE_AUTH = 'false'
             robot = new MockRobot
+            adapter = BotFrameworkAdapter.use(robot)
+            adapter.run = () ->
+                @emit "loadAuthorizedUsers"
 
             # Action
             expect(() ->
-                adapter = BotFrameworkAdapter.use(robot)
+                adapter.run(robot)
             ).to.not.throw()
 
             # Assert
             expect(robot.brain.get("authorizedUsers")).to.be.null
         
-        it 'should throw error when auth is enabled and initial admins', ->
+        it 'should throw error when auth is enabled and initial admins is not set', ->
             # Setup
             delete process.env.HUBOT_TEAMS_INITIAL_ADMINS
             robot = new MockRobot
+            adapter = BotFrameworkAdapter.use(robot)
+            adapter.run = () ->
+                @emit "loadAuthorizedUsers"
 
             # Action and Assert
             expect(() ->
-                adapter = BotFrameworkAdapter.use(robot)
+                adapter.run(robot)
             ).to.throw()
 
         it 'should set initial admins when auth is enabled', ->
             # Setup
             robot = new MockRobot
+            adapter = BotFrameworkAdapter.use(robot)
+            adapter.run = () ->
+                @emit "loadAuthorizedUsers"
 
             # Action
             expect(() ->
-                adapter = BotFrameworkAdapter.use(robot)
+                adapter.run(robot)
             ).to.not.throw()
 
             # Assert

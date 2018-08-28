@@ -66,7 +66,12 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
 
         # Get the user
         user = getUser(activity)
+        
+        # Store the UPN temporarily to re-add it to user and ensure
+        # the user has a UPN.
+        upn = user.userPrincipalName
         user = @robot.brain.userForId(user.id, user)
+        user.userPrincipalName = upn
 
         # We don't want to save the activity or room in the brain since its
         # something that changes per chat.
