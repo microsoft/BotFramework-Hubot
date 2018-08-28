@@ -31,18 +31,20 @@ class BotFrameworkAdapter extends Adapter
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
         # Initial Admins should be required when auth is enabled
-        if @enableAuth
-            if @initialAdmins?
-                # If there isn't a list of authorized users in the brain, populate
-                # it with admins from the environment variable
-                if robot.brain.get("authorizedUsers") is null
-                    robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
-                    authorizedUsers = {}
-                    for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
-                        authorizedUsers[admin.toLowerCase()] = true
-                    robot.brain.set("authorizedUsers", authorizedUsers)
-            else
-                throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required for authorization")
+        @robot.brain.on( "loaded", () =>
+            if @enableAuth
+                if @initialAdmins?
+                    # If there isn't a list of authorized users in the brain, populate
+                    # it with admins from the environment variable
+                    if robot.brain.get("authorizedUsers") is null
+                        robot.logger.info "#{LogPrefix} Restricting by name, setting admins"
+                        authorizedUsers = {}
+                        for admin in process.env.HUBOT_TEAMS_INITIAL_ADMINS.split(",")
+                            authorizedUsers[admin.toLowerCase()] = true
+                        robot.brain.set("authorizedUsers", authorizedUsers)
+                else
+                    throw new Error("HUBOT_TEAMS_INITIAL_ADMINS is required for authorization")
+        )
 
         @connector  = new BotBuilder.ChatConnector {
             appId: @appId
@@ -52,7 +54,6 @@ class BotFrameworkAdapter extends Adapter
         @connector.onEvent (events, cb) => @onBotEvents events, cb
 
         @connector.onInvoke (events, cb) => @onInvoke events, cb
-
 
     # Handles the invoke and passes an event to be handled, if needed
     onInvoke: (invokeEvent, cb) ->

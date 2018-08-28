@@ -32,6 +32,8 @@ class MockRobot
                 return null
             set: (key, value) ->
                 @data[key] = value
+            on: (eventType, functionToRun) ->
+                functionToRun()
 
     receive: (event) ->
         @brain.data["event"] = event
