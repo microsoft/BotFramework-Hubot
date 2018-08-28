@@ -11,8 +11,10 @@
 LogPrefix = "hubot-botframework-middleware:"
 
 class BaseMiddleware
-    constructor: (@robot) ->
+    constructor: (@robot, appId, appPassword) ->
         @robot.logger.info "#{LogPrefix} creating middleware..."
+        @appId = appId
+        @appPassword = appPassword
 
     toReceivable: (activity) ->
         throw new Error('toReceivable not implemented')
@@ -21,6 +23,10 @@ class BaseMiddleware
         throw new Error('toSendable not implemented')
 
 class TextMiddleware extends BaseMiddleware
+    # TextMiddleware doesn't use invokes currently, so just return null
+    handleInvoke: (invokeEvent, connector) ->
+        return null
+
     toReceivable: (activity) ->
         @robot.logger.info "#{LogPrefix} TextMiddleware toReceivable"
         address = activity.address
@@ -42,6 +48,39 @@ class TextMiddleware extends BaseMiddleware
             }
         
         return message
+    
+    # Constructs a text message response to indicate an error to the user in the
+    # message channel they are using
+    constructErrorResponse: (activity, text) ->
+        payload =
+            type: 'message'
+            text: "#{text}"
+            address: activity?.address
+        return payload
+
+    # Sends an error message back to the user if authorization isn't supported for the
+    # channel or prepares and sends the message to hubot for reception
+    maybeReceive: (activity, connector, authEnabled) ->
+        # Return an error to the user if the message channel doesn't support authorization
+        # and authorization is enabled
+        if authEnabled
+            @robot.logger.info "#{LogPrefix} Authorization isn\'t supported
+                                    for the channel error"
+            text = "Authorization isn't supported for this channel"
+            payload = @constructErrorResponse(activity, text)
+            @send(connector, payload)
+        else
+            event = @toReceivable activity
+            if event?
+                @robot.receive event
+
+    # Sends the payload to the bot framework messaging channel
+    send: (connector, payload) ->
+        if !Array.isArray(payload)
+            payload = [payload]
+        connector.send payload, (err, _) ->
+            if err
+                throw err
 
 Middleware = {
     '*': TextMiddleware
