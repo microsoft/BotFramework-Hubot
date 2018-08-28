@@ -30,8 +30,8 @@ class BotFrameworkAdapter extends Adapter
         @initialAdmins = process.env.HUBOT_TEAMS_INITIAL_ADMINS
         robot.logger.info "#{LogPrefix} Adapter loaded. Using appId #{@appId}"
 
-        # Initial Admins should be required when auth is enabled
-        @robot.brain.on( "loaded", () =>
+        # When the adapter is ready to be run, load the authorized users if needed
+        @on( "loadAuthorizedUsers", () =>
             if @enableAuth
                 if @initialAdmins?
                     # If there isn't a list of authorized users in the brain, populate
@@ -93,6 +93,7 @@ class BotFrameworkAdapter extends Adapter
             middleware.send(@connector, payload)
 
     run: ->
+        @emit "loadAuthorizedUsers"
         @robot.router.post @endpoint, @connector.listen()
         @robot.logger.info "#{LogPrefix} Adapter running."
         Timers.setTimeout (=> @emit "connected"), 1000
