@@ -2,9 +2,9 @@ chai = require 'chai'
 expect = chai.expect
 { TextMessage, Message, User } = require 'hubot'
 MockRobot = require './mock-robot'
-MicrosoftSkypeMiddleware = require '../src/skype-middleware'
+SkypeMiddleware = require '../src/skype-middleware'
 
-describe 'MicrosoftSkypeMiddleware', ->
+describe 'SkypeMiddleware', ->
     describe 'toReceivable', ->
         robot = null
         event = null
@@ -43,7 +43,7 @@ describe 'MicrosoftSkypeMiddleware', ->
         it 'return generic message when appropriate type is not found', ->
             # Setup
             event.type = 'typing'
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             receivable = null
@@ -57,7 +57,7 @@ describe 'MicrosoftSkypeMiddleware', ->
         it 'should work when activity text is an object', ->
             # Setup
             event.text = event
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             receivable = null
@@ -71,7 +71,7 @@ describe 'MicrosoftSkypeMiddleware', ->
         it 'should work when mentions not provided', ->
             # Setup
             delete event.entities
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             receivable = null
@@ -84,7 +84,7 @@ describe 'MicrosoftSkypeMiddleware', ->
 
         it 'should replace all @ mentions', ->
             # Setup
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             receivable = null
@@ -99,7 +99,7 @@ describe 'MicrosoftSkypeMiddleware', ->
         it 'should replace at mentions even when entities is not an array', ->
             # Setup
             event.entities = event.entities[0]
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             receivable = null
@@ -115,7 +115,7 @@ describe 'MicrosoftSkypeMiddleware', ->
             # Setup
             event.address.conversation.id = event.address.user.id
             event.text = 'do something <at>Bot</at> and tell <at>User</at> about it'
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             receivable = null
@@ -170,7 +170,7 @@ describe 'MicrosoftSkypeMiddleware', ->
 
         it 'should create message object for string messages', ->
             # Setup
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             sendable = null
@@ -194,7 +194,7 @@ describe 'MicrosoftSkypeMiddleware', ->
             # Setup
             message =
               type: "some message type"
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             sendable = null
@@ -215,7 +215,7 @@ describe 'MicrosoftSkypeMiddleware', ->
         it 'should convert images', ->
             # Setup
             message = "http://test.com/thisisanimage.jpg"
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             sendable = null
@@ -242,7 +242,7 @@ describe 'MicrosoftSkypeMiddleware', ->
         it 'should not convert other links', ->
             # Setup
             message = "http://test.com/thisisanimage.html"
-            skypeMiddleware = new MicrosoftSkypeMiddleware(robot)
+            skypeMiddleware = new SkypeMiddleware(robot)
 
             # Action
             sendable = null

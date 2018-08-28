@@ -24,7 +24,7 @@
 { BaseMiddleware, registerMiddleware } = require './adapter-middleware'
 LogPrefix = "hubot-skype:"
 
-class MicrosoftSkypeMiddleware extends BaseMiddleware
+class SkypeMiddleware extends BaseMiddleware
    
     toReceivable: (activity) ->
         @robot.logger.info "#{LogPrefix} toReceivable"
@@ -143,6 +143,6 @@ class MicrosoftSkypeMiddleware extends BaseMiddleware
         return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
 
 
-registerMiddleware 'skype', MicrosoftSkypeMiddleware
+registerMiddleware 'skype', SkypeMiddleware
 
-module.exports = MicrosoftSkypeMiddleware
+module.exports = SkypeMiddleware

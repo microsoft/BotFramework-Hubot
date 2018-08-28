@@ -15,7 +15,7 @@ BotBuilder = require 'botbuilder'
 { Robot, Adapter, TextMessage, User } = require 'hubot'
 Middleware = require './adapter-middleware'
 MicrosoftTeamsMiddleware = require './msteams-middleware'
-MicrosoftSkypeMiddleware = require './skype-middleware'
+SkypeMiddleware = require './skype-middleware'
 
 LogPrefix = "hubot-botframework-adapter:"
 
@@ -73,7 +73,7 @@ class BotFrameworkAdapter extends Adapter
 module.exports = {
     Middleware,
     MicrosoftTeamsMiddleware,
-    MicrosoftSkypeMiddleware
+    SkypeMiddleware
 }
 
 module.exports.use = (robot) ->
