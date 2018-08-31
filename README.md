@@ -5,7 +5,7 @@
 # Installation
 ### Use hubot in Bot Framework Supported Channels
 1. Install `hubot`. Make sure to `npm install --save hubot-botframework` to add this module.
-    - Authorization and Card-based interactions are in alpha testing and are not part of the published npm package, so to use these features, clone or download this repository and install it as a local dependency of your hubot. Then after running `npm install` for your hubot, in the local copy of the BotFramework adapter, run `npm install <<relative-path-to-your-hubot>>/node_modules/hubot` to point the local copy of the BotFramework adapter to your hubot.
+    - Authorization and Card-based interactions are in alpha testing and are not part of the published npm package, so to use these features, clone or download this repository and install it as a local dependency of your hubot. Then after running `npm install` for your hubot, in the local copy of the BotFramework adapter, run `npm install --production` then run `npm install --save <<relative-path-to-your-hubot>>/node_modules/hubot` to point the local copy of the BotFramework adapter to your hubot.
 
 2. Create a Botframework Registration by completing the [Bot Registration Page](https://dev.botframework.com/bots/new). Store the created app id and app password for use later.
 

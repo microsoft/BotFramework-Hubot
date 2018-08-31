@@ -1780,6 +1780,7 @@ describe 'MicrosoftTeamsMiddleware', ->
 
         beforeEach ->
             robot = new MockRobot
+            robot.name = 'hubot'
             teamsMiddleware = new MicrosoftTeamsMiddleware(robot, appId, appPassword)
             event =
                 value:
