@@ -4,7 +4,8 @@
 
 # Installation
 ### Use hubot in Bot Framework Supported Channels
-1. Install `hubot`. Make sure to `npm install --save hubot-botframework` to add this module. 
+1. Install `hubot`. Make sure to `npm install --save hubot-botframework` to add this module.
+    - Authorization and Card-based interactions are in alpha testing and are not part of the published npm package, so to use these features, clone or download this repository and install it as a local dependency of your hubot. Then after running `npm install` for your hubot, in the local copy of the BotFramework adapter, run `npm install <<relative-path-to-your-hubot>>/node_modules/hubot` to point the local copy of the BotFramework adapter to your hubot.
 
 2. Create a Botframework Registration by completing the [Bot Registration Page](https://dev.botframework.com/bots/new). Store the created app id and app password for use later.
 
@@ -54,7 +55,7 @@ Authorization is set up using the `HUBOT_TEAMS_ENABLE_AUTH` and `HUBOT_TEAMS_INI
 
 * `HUBOT_TEAMS_INITIAL_ADMINS` is required if authorization is enabled. This variable contains a comma-separated list of UPNs. When the hubot is run with authorization enabled for the first time, the users whose UPNs are listed will be admins and authorized to send commands to hubot. These UPNs are stored in the hubot brain. After running hubot with authorization enabled for the first time:
 
-    - If your hubot brain is persistent, to change the list of authorized users, first delete the stored list of authorized users from your hubot's brain then change `HUBOT_TEAMS_INITIAL_ADMINS` to the new list. Also consider using the [hubot-msteams](https://github.com/jayongg/TeamsHubot) script package to dynamically control authorizations.
+    - If your hubot brain is persistent, to change the list of authorized users, first delete the stored list of authorized users from your hubot's brain then change `HUBOT_TEAMS_INITIAL_ADMINS` to the new list. Also consider using the [hubot-msteams](https://github.com/officedev/TeamsHubot) script package to dynamically control authorizations.
 
     - If your hubot brain isn't persistent, the `HUBOT_TEAMS_INITIAL_ADMINS` list will be used to set admins every time hubot is restarted.
 
@@ -79,7 +80,7 @@ Adding new card-based interactions has two steps:
     * inputParts contains representations of each user input in a command, if any. The text is used to prompt the user for input.
     A special syntax can used for inputs with finite choices to create a dropdown selector. In this case, a / is used followed by the choices separated by the word " or ". See the `hubot-github` entries for examples.
     
-Once these entries have been added, cards with follow up commands will be generated for the commands added to HubotResponseCards. For menu cards used to initiate card-based interactions for any command in a script library, use the [hubot-msteams](https://github.com/jayongg/TeamsHubot) library.
+Once these entries have been added, cards with follow up commands will be generated for the commands added to HubotResponseCards. For menu cards used to initiate card-based interactions for any command in a script library, use the [hubot-msteams](https://github.com/officedev/TeamsHubot) library.
 
 # Contributing
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments
