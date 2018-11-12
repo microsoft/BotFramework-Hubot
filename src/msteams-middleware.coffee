@@ -237,8 +237,8 @@ class MicrosoftTeamsMiddleware extends BaseMiddleware
     # if user input is not needed
     maybeConstructUserInputPrompt: (event) ->
         query = event.value.hubotMessage
-        # Remove hubot from the beginning of the command if it's there
-        query = query.replace("hubot ", "")
+        # Remove the robot's name from the beginning of the command if it's there
+        query = query.replace("#{@robot.name} ", "")
 
         card = HubotResponseCards.maybeConstructMenuInputCard(query)
         if card is null
