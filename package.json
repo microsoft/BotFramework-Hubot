@@ -17,8 +17,8 @@
     "coverage-report": "npm run coverage && istanbul report"
   },
   "dependencies": {
-    "botbuilder": ">=3.5.0",
-    "botbuilder-teams": ">=0.2.1",
+    "botbuilder": ">=3.5.0 <4.0.0",
+    "botbuilder-teams": ">=0.2.1 <0.3.0",
     "parent-require": "^1.0.0"
   },
   "peerDependencies": {
