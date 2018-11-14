@@ -21,6 +21,10 @@ You can then interact with your hubot through any Bot Framework supported channe
 
 You can then interact with hubot through a personal chat or by @mentioning the name of the uploaded custom app in a Team. In personal chats, the bot's name can be dropped from messages(`ping` or `hubot ping`). In Teams, @mention the bot and omit the bot's name from the command (`@myhubot ping`).
 
+#### Common Differences in Hubot running in Slack, Hipchat, other chat platforms and MS Teams
+1. Microsoft Teams uses a push model to send messages. This means that hubots that want to communicate in Teams MUST expose themselves via a public HTTPS endpoint that Microsoft Teams services can push messages to.
+2. The bot MUST be @ mentioned in a channel to receive a message. Microsoft Teams does NOT send all messages to the bot.
+
 # Global Variables
 You can configure the Hubot BotFramework adapter through environment variables.
 
